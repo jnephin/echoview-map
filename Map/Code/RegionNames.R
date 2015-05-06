@@ -15,6 +15,6 @@ region <- cruiselog[cruiselog$Region_type == " Analysis", c("Region_class", "Dat
 reg <- region[!duplicated(region$Region_class),]
 #output region classes for shiny ui
 reg.names <- reg$Region_class
-dput(reg.names, file="R/Map/Layers/Species")
+dput(reg.names, file="EchoviewR/Map/Layers/Species")
 
 

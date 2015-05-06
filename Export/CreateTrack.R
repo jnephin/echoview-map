@@ -1,4 +1,5 @@
 require(RDCOMClient)
+setwd(file.path(getwd(),"EchoviewR/Export"))
 source("1_Paths.R")
 
 

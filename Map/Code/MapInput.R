@@ -33,7 +33,7 @@ ld<-data.frame(landT)
 #------ Bathymetry --------#
 
 if (dataset == "Pacific") {
-  load("R/Map/Layers/NPObathy.rda")
+  load("EchoviewR/Map/Layers/NPObathy.rda")
   isobath <- NPObathy
   isobath$z <- isobath$z * -1 
 } else{
@@ -100,7 +100,7 @@ ocean <- colorRampPalette(ocean.cols)(length(isobs))
 
 ############################
 #-------- Citites ---------#
-cities <- read.csv("R/Map/Layers/Cities.csv", header=T)
+cities <- read.csv("EchoviewR/Map/Layers/Cities.csv", header=T)
 cities <- as.EventData(cities, projection="LL")
 ct <- data.frame(cities)
 
@@ -179,7 +179,7 @@ ctd <- Log[Log$Region_class == " CTD" | Log$Region_class == "CTD", c("Region_cla
 #################################
 #------------ NASC ------------#
 
-intfile <- "Acoustics/Echoview/Exports/Sv raw pings T2/IntegratedByRegionsByCell.csv"
+intfile <- "Acoustics/Echoview/Exports/Sv raw pings T2/IntegratedByRegionsByCells.csv"
 
 #Load the integration file. If it doesn't exist, give error
 if (file.exists(intfile)) {
@@ -246,14 +246,18 @@ base <- base + theme(panel.border = element_rect(fill=NA, colour="black"),
     panel.grid.major = element_blank(),
     panel.grid.minor = element_blank(),
     axis.ticks.length = unit(0.1,"cm"),
-    axis.text = element_text(size=8, colour = "black"),
-    axis.title = element_text(size=9),
-    legend.text = element_text(size=8),
-    legend.title = element_text(size=9, face="plain"),
+    axis.text = element_text(size=10, colour = "black"),
+    axis.title = element_text(size=11),
+    legend.text = element_text(size=11),
+    legend.title = element_text(size=12, face="plain"),
     legend.background = element_blank(), legend.key = element_blank(),
     legend.key.height = unit(.5,"cm"), legend.key.width = unit(.4,"cm"),
     legend.justification = c(1,1), legend.position = "right", 
     plot.margin = unit(c(.5,.5,.5,.5), "lines")) # top, right, bottom, and left 
+
+
+#guides
+base <- base + guides(colour = guide_legend(override.aes = list(size=4)))
 
 #city
 if(city == TRUE)  {
@@ -299,7 +303,8 @@ if(analysis == "Regions") {
 #nasc
 if(analysis == "NASC") {
   base <- base + geom_point(data = nasc.df, aes_string(x = "Lon_S", y = "Lat_S",
-                            colour="set1", alpha = "alpha", size = "PRC_NASC"), pch = 20, max_size = maxsize) +
+                            colour="set1", alpha = "alpha", size = "PRC_NASC"), pch = 20, 
+                            max_size = maxsize) +
                  scale_size_area(max_size = maxsize, name = "NASC") +
                  scale_alpha_identity()
 }

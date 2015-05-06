@@ -1,4 +1,5 @@
 require(RDCOMClient)
+setwd(file.path(getwd(),"EchoviewR/Export"))
 source("1_Paths.R")
 
 
@@ -9,7 +10,7 @@ source("1_Paths.R")
 
 # INTEGRATE 
 # Make TRUE the method(s) you which to integrate by
-ByCell <- TRUE
+ByCell <- FALSE
 ByRegion <- FALSE
 ByCellByRegion <- TRUE
 
@@ -137,14 +138,21 @@ for (j in variables) {
 
 exp.list <- list.files(file.path(getwd(), EXPdir, j), pattern="*IntegratedByCells.csv")
 
+columns <- c("Process_ID", "Interval", "Layer", "Sv_mean",	"NASC",	"Layer_depth_min",   "Layer_depth_max", "VL_start",	"VL_end",	"Date_S",	 "Time_S",	 "Lat_S",	 "Lon_S",	 "Exclude_below_line_depth_mean",	 "Processing_version",	 "Processing_date",	 "Processing_time",	 "EV_filename",	 "Alpha",	 "Gain_constant",	 "Noise_Sv_1m",	 "Minimum_Sv_threshold_applied",	 "Minimum_integration_threshold",	 "Maximum_Sv_threshold_applied",	 "Maximum_integration_threshold",	 "Exclude_above_line_applied",	 "Exclude_above_line_depth_mean",	 "Exclude_below_line_applied",	 "Standard_deviation")
+
 df <- NULL
 for (k in exp.list){
   d <- read.csv(file.path(getwd(), EXPdir, j, k), header = T)
-    df <- rbind(df,d)
+  colnames(d)[1] <- "Process_ID"
+  d <- d[,columns]
+  df <- rbind(df,d)
 }
 
-write.csv(df, file = file.path(getwd(), EXPdir,  j, "IntegratedByCells.csv"))
-
+if (is.null(df)) {
+  print("NULL")
+    } else {
+      write.csv(df, file = file.path(getwd(), EXPdir,  j, "IntegratedByCells.csv"))
+    }
 }
 
 
@@ -156,14 +164,21 @@ for (j in variables) {
   
   exp.list <- list.files(file.path(getwd(), EXPdir, j), pattern="*IntegratedByRegions.csv")
   
+  columns <- c("Region_ID",   "Region_name",   "Region_class",	 "Process_ID", "Sv_mean",	 "NASC",	 "VL_start",	 "VL_end",	 "Date_S",	 "Time_S",	 "Lat_S",	 "Lon_S",	 "Exclude_below_line_depth_mean",	 "Processing_version",	 "Processing_date",	 "Processing_time",	 "EV_filename",	 "Alpha",	 "Gain_constant",	 "Noise_Sv_1m",	 "Minimum_Sv_threshold_applied",	 "Minimum_integration_threshold",	 "Maximum_Sv_threshold_applied",	 "Maximum_integration_threshold",	 "Exclude_above_line_applied",	 "Exclude_above_line_depth_mean",	 "Exclude_below_line_applied",	 "Standard_deviation")
+  
   df <- NULL
   for (k in exp.list){
     d <- read.csv(file.path(getwd(), EXPdir, j, k), header = T)
+    colnames(d)[1] <- "Region_ID"
+    d <- d[,columns]
     df <- rbind(df,d)
   }
   
+  if (is.null(df)) {
+    print("NULL")
+  } else {  
   write.csv(df, file = file.path(getwd(), EXPdir,  j, "IntegratedByRegions.csv"))
-  
+  }
 }
 
 
@@ -174,14 +189,21 @@ for (j in variables) {
   
   exp.list <- list.files(file.path(getwd(), EXPdir, j), pattern="*IntegratedByRegionsByCells.csv")
   
+  columns <- c("Region_ID",   "Region_name",	 "Region_class",	 "Process_ID",	 "Interval",	 "Layer",	 "Sv_mean",	 "PRC_NASC",	 "Layer_depth_min",	 "Layer_depth_max",	 "VL_start",	 "VL_end",	 "Date_S",	 "Time_S",	 "Lat_S",	 "Lon_S",	 "Exclude_below_line_depth_mean",	 "Processing_version",	 "Processing_date",	 "Processing_time",	 "EV_filename",	 "Alpha",	 "Gain_constant",	 "Noise_Sv_1m",	 "Minimum_Sv_threshold_applied",	 "Minimum_integration_threshold",	 "Maximum_Sv_threshold_applied",	 "Maximum_integration_threshold",	 "Exclude_above_line_applied",	 "Exclude_above_line_depth_mean",	 "Exclude_below_line_applied",	 "Standard_deviation")
+  
   df <- NULL
   for (k in exp.list){
     d <- read.csv(file.path(getwd(), EXPdir, j, k), header = T)
+    colnames(d)[1] <- "Region_ID"
+    d <- d[,columns]
     df <- rbind(df,d)
   }
   
+  if (is.null(df)) {
+    print("NULL")
+  } else {
   write.csv(df, file = file.path(getwd(), EXPdir,  j, "IntegratedByRegionsByCells.csv"))
-  
+  }
 }
 
 

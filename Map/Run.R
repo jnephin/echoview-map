@@ -2,7 +2,7 @@
 
 # set working directory and source code
 setwd('..');setwd('..')
-source("R/Map/Code/Interactive.R")
+source("EchoviewR/Map/Code/Interactive.R")
 
 
 

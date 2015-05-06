@@ -7,11 +7,11 @@ if(length(new.packages)) install.packages(new.packages, repos = "http://cran.sta
 
 ###################################################################################
 # load source files
-source("R/Map/Code/RegionNames.R")
-source("R/Map/Code/MapInput.R")
+source("EchoviewR/Map/Code/RegionNames.R")
+source("EchoviewR/Map/Code/MapInput.R")
 
 #load analysis region names
-species.names <- dget("R/Map/Layers/Species")
+species.names <- dget("EchoviewR/Map/Layers/Species")
 
 # create Maps directory if necessary
 Mapdir <- "Other data/Maps"
@@ -92,9 +92,9 @@ ui = fluidPage(
                    column(12, 
                           h4("Print PDF options", align ="center")),
                    column(3,     
-                          numericInput("width", label = "Width", value = 7)),
+                          numericInput("width", label = "Width", value = 10)),
                    column(3,
-                          numericInput("height", label = "Height", value = 6)),
+                          numericInput("height", label = "Height", value = 9)),
                    column(6,
                           textInput("name",  label = "File Name", value = "Map"))),
                  hr(),
