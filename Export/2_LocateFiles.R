@@ -2,7 +2,7 @@
 ### load or install COM client
 have <- "RDCOMClient" %in% installed.packages()[,"Package"]
 if (have == FALSE){
-  install.packages(new.packages, repos = "http://cran.stat.sfu.ca/")
+  install.packages("RDCOMClient", repos = "http://cran.stat.sfu.ca/")
 }
 require(RDCOMClient)
 
