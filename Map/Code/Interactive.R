@@ -14,7 +14,7 @@ source("EchoviewR/Map/Code/MapInput.R")
 species.names <- dget("EchoviewR/Map/Layers/Species")
 
 # create Maps directory if necessary
-Mapdir <- "Other data/Maps"
+Mapdir <- "Other data/Figures"
 suppressWarnings(dir.create(file.path(getwd(), Mapdir)))
 
 ###################################################################################   
