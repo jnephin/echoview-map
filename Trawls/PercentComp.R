@@ -1,8 +1,14 @@
+### load or install COM client
+have <- "classInt" %in% installed.packages()[,"Package"]
+if (have == FALSE){
+  install.packages("classInt", repos = "http://cran.stat.sfu.ca/")
+}
+
+
 require(ggplot2)
-library(ggsubplot)
 require(grid)
 require(PBSmapping)
-
+require(classInt)
 
 # set working directory 
 setwd('..');setwd('..')
@@ -19,67 +25,64 @@ log <- log[!(log$Lat_s == 999),]
 
 
 ############################################################################
-# get the percent catch by tow
+# percent catch by tow
 catch$FE_TOTAL_CATCH_WEIGHT[is.na(catch$FE_TOTAL_CATCH_WEIGHT)] <- 0
 catch$WT[is.na(catch$WT)] <- 0
 catch$PERCENT <- catch$WT/catch$FE_TOTAL_CATCH_WEIGHT*100
 
 
-
-
-
-############################################################################
-# subset catch data
-
-# 1) only inlcude species in cruise log analysis regions
-species <- unique(log$Region_class[log$Region_type == " Analysis"])
-analysis.catch <- NULL
-for (i in species){
-temp <- catch[grep(i, catch$SPECIES_DESC, ignore.case=TRUE),]
-analysis.catch <- rbind(analysis.catch, temp)
-}
-
-# plot
-ggplot(data = analysis.catch) +
-  geom_bar(aes(x=factor(SET), y = PERCENT, fill = SPECIES_DESC), stat = "identity")+
-  scale_fill_brewer(palette="Set1", name = "Species")+
-  labs(x="SET")+
-  theme_bw()+
-  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
-
-
-# 2) only inlcude top 6 species by weight across all tows
+## total catch data for all sets combined
 total.catch <- aggregate(WT ~ SPECIES_DESC, sum, data = catch)
-main.species <- tail(total.catch$SPECIES_DESC[order(total.catch$WT)],6)             
-main.catch <- catch[catch$SPECIES_DESC %in% main.species,]
 
-# plot
-ggplot(data = main.catch) +
-  geom_bar(aes(x=factor(SET), y = PERCENT, fill = SPECIES_DESC), stat = "identity")+
-  scale_fill_brewer(palette="Set1", name = "Species")+
-  labs(x="SET")+
-  theme_bw()+
-  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
+
+## Number of species to include in 'top' species
+top <- 6
+
+
+## set colour palette
+cols <- c("#e41a1c", "#ff7f00", "#FFD900",  "#4daf4a","#377eb8", "#984ea3", "#f781bf", "#a65628","#999999")
+leg <- ifelse(top > length(cols), length(cols), top)
+pal <- colorRampPalette(cols[1:leg],space = c("rgb"),interpolate = c("spline"))(top)
+
 
 
 
 ############################################################################
 # plot percentage of total catch for the survey
 
+# percent catch
 total.catch$percent <- total.catch$WT/sum(total.catch$WT)*100
 
-#plot only the top 8 species and group the rest into 'other'
-top.catch <- tail(total.catch[order(total.catch$percent),],8)  
+# top species 
+top.catch <- tail(total.catch[order(total.catch$percent),],top)  
 top.catch$SPECIES_DESC <- as.factor(top.catch$SPECIES_DESC)
-other.catch <- head(total.catch[order(total.catch$percent),],nrow(total.catch)-8) 
+
+# group the rest into 'other'
+other.catch <- head(total.catch[order(total.catch$percent),],nrow(total.catch)-top) 
 other <- data.frame(SPECIES_DESC="OTHER",
                     WT = sum(other.catch$WT), 
                     percent = sum(other.catch$percent))
-top.catch <- rbind(top.catch, other)
 
+# bind together and order
+top.catch <- rbind(top.catch, other)
+top.catch$WT <- round(top.catch$WT)
+top.catch <- top.catch[order(top.catch$percent),]
+ord.catch <- top.catch[order(top.catch$SPECIES_DESC),]
+
+
+# check that percent sums to 1
+sum(top.catch$percent)
+
+
+# colours
+pal.t <- colorRampPalette(cols[1:(leg+1)],space = c("rgb"),interpolate = c("spline"))(top + 1)
+
+## plot
 plototal <- ggplot(data = top.catch) +
-      geom_bar(aes(x=1, y = percent, fill = SPECIES_DESC), stat = "identity")+
-      scale_fill_brewer(palette="Set1", name = "Species")+
+      geom_bar(aes(x=1, y = percent, fill = SPECIES_DESC), stat = "identity", colour="black", size=.05)+
+      scale_fill_manual(values= pal.t, name = "Species", 
+                        labels = paste(ord.catch$SPECIES_DESC," - ",ord.catch$WT,"kg", sep=""),
+                        guide=guide_legend(override.aes = list(colour=NA)))+
       scale_y_continuous(limits=c(0,100))+
       coord_polar(theta = "y")+
       theme_bw()+
@@ -95,9 +98,54 @@ plototal <- ggplot(data = top.catch) +
         plot.margin = unit(c(0,0,0,0), "lines"))
 plototal
 
-pdf("Other data/Figures/TotalCatch_Percent.pdf", width = 5.5, height = 3)
+pdf("Other data/Figures/TotalCatch_Percent.pdf", width = 6, height = 3.5)
 plototal
 dev.off()
+
+
+
+
+############################################################################
+##  plot percent catch per set 
+# 1) for species in analysis region only
+
+species <- unique(log$Region_class[log$Region_type == " Analysis"])
+analysis.catch <- NULL
+for (i in species){
+  temp <- catch[grep(i, catch$SPECIES_DESC, ignore.case=TRUE),]
+  analysis.catch <- rbind(analysis.catch, temp)
+}
+
+# colours
+leg.a <- ifelse(top > length(cols), length(cols), top)
+pal.a <- colorRampPalette(cols[1:(leg+1)],space = c("rgb"),interpolate = c("spline"))(top + 1)
+
+
+## plot
+ggplot(data = analysis.catch) +
+  geom_bar(aes(x=factor(SET), y = PERCENT, fill = SPECIES_DESC), stat = "identity")+
+  scale_fill_manual(values= pal, name = "Species")+
+  labs(x="SET")+
+  theme_bw()+
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
+
+
+
+############################################################################
+##  plot percent catch per set 
+# 2) for top species only
+
+main.species <- tail(total.catch$SPECIES_DESC[order(total.catch$WT)],top)             
+main.catch <- catch[catch$SPECIES_DESC %in% main.species,]
+
+# plot
+ggplot(data = main.catch) +
+  geom_bar(aes(x=factor(SET), y = PERCENT, fill = SPECIES_DESC), stat = "identity")+
+  scale_fill_manual(values= pal, name = "Species")+
+  labs(x="SET")+
+  theme_bw()+
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
+
 
 
 
@@ -128,7 +176,11 @@ land <- data.frame(landC)
 
 
 ##########################################################################
-# Map Weight (kg)
+# Map Weight (kg)]
+
+breaks <- signif(classIntervals(main.catch.xy$WT, 5, style = "kmeans")$brks,1)[-1]
+
+  
 mapkg <-  ggplot(data = NULL) + 
   # facets
   facet_wrap(~SPECIES_DESC, nrow=2)+
@@ -139,8 +191,8 @@ mapkg <-  ggplot(data = NULL) +
   geom_point(data = main.catch.xy, aes(x = Lon_s, y = Lat_s, 
                                   colour = SPECIES_DESC, size = WT), pch=20)+
   geom_text(data = set.xy, aes(x = Lon_s, y = Lat_s, label = SET), pch = 4, size = 2)+
-  scale_size_area(max_size = 9, name = "Weight (kg)") +
-  scale_colour_brewer(palette="Dark2", name = "Species")+
+  scale_size_area(max_size = 12, name = "Weight (kg)", breaks = breaks) +
+  scale_colour_manual(values= pal, name = "Species")+
   # spatial extent
   coord_map(xlim = c(min(log$Lon_s)-.5, max(log$Lon_s)+.5), 
           ylim = c(min(log$Lat_s)-.5, max(log$Lat_s)+.5)) +
@@ -183,7 +235,7 @@ mapper <-  ggplot(data = NULL) +
                                        colour = SPECIES_DESC, size = PERCENT), pch=20)+
   geom_text(data = set.xy, aes(x = Lon_s, y = Lat_s, label = SET), pch = 4, size = 2)+
   scale_size_area(max_size = 9, name = "% of tow (by weight)") +
-  scale_colour_brewer(palette="Dark2", name = "Species")+
+  scale_colour_manual(values= pal, name = "Species")+
   # spatial extent
   coord_map(xlim = c(min(log$Lon_s)-.5, max(log$Lon_s)+.5), 
             ylim = c(min(log$Lat_s)-.5, max(log$Lat_s)+.5)) +
@@ -211,5 +263,7 @@ mapper
 pdf("Other data/Figures/CatchWeight_Percent.pdf", width = 8.5, height = 5)
 mapper
 dev.off()
+
+
 
 
