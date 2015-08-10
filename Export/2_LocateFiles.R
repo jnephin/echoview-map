@@ -48,8 +48,8 @@ for (i in EVfile.list){
   
   
   #set fileset object
-  filesetObj <- EVfile[["Filesets"]]$FindByName('Fileset1')
-  
+  filesetObj <- EVfile[["Filesets"]]$Item(0)
+ 
   # set calibration file
   add.calibration <- filesetObj$SetCalibrationFile(CALfileName)
   

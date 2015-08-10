@@ -1,4 +1,4 @@
-### load or install COM client
+### load or install
 have <- "classInt" %in% installed.packages()[,"Package"]
 if (have == FALSE){
   install.packages("classInt", repos = "http://cran.stat.sfu.ca/")
@@ -217,7 +217,7 @@ mapkg <-  ggplot(data = NULL) +
         panel.margin = unit(0.2, "lines")) # top, right, bottom, and
 mapkg
 
-pdf("Other data/Figures/CatchWeight_kg.pdf", width = 8.5, height = 5)
+pdf("Other data/Figures/CatchWeight_Map.pdf", width = 8.5, height = 5)
 mapkg
 dev.off()
 
@@ -260,7 +260,7 @@ mapper <-  ggplot(data = NULL) +
         panel.margin = unit(0.2, "lines")) # top, right, bottom, and
 mapper
 
-pdf("Other data/Figures/CatchWeight_Percent.pdf", width = 8.5, height = 5)
+pdf("Other data/Figures/CatchPercent_Map.pdf", width = 8.5, height = 5)
 mapper
 dev.off()
 

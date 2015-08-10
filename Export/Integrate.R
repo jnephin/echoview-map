@@ -82,6 +82,11 @@ ExpVarObj <- EVfile[["Properties"]][["Export"]][["Variables"]]
 # enable export variables
 exNASC <- ExpVarObj$Item("NASC"); exNASC[["Enabled"]] = 1
 
+# export properties mode set to spreadsheet
+ExpObj <- EVfile[["Properties"]][["Export"]]
+ExpObj[["Mode"]] = 2
+
+
 
 # EV filename
 EvName <- strsplit(i, split = '*.EV')[[1]]

@@ -25,7 +25,7 @@ EVApp <- COMCreate("EchoviewCom.EvApplication")
 EVfile <- EVApp$NewFile("temp.EV")
 
 #set fileset object
-filesetObj <- EVfile[["Filesets"]]$FindByName('Fileset1')
+filesetObj <- EVfile[["Filesets"]]$Item(0)
 
 #add data
 for (i in RAWfileNames){
