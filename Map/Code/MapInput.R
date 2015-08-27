@@ -4,6 +4,7 @@ require(grid)
 require(mapproj)
 require(plyr)
 require(chron)
+require(classInt)
 
 
 basePlot <- function(dataset, city, survey, day, hour, shiplog, analysis, nasc, species, ctds, trawl, project, xlims, ylims, isob, bathy, pointsize, linesize, maxsize){
@@ -140,18 +141,18 @@ time$Hours <- paste(time$Hours, ":00", sep="")
 cruiselog <- read.csv("Other data/Log/CruiseLog.csv", header=T, stringsAsFactors = FALSE)
 Log <- cruiselog[cruiselog$Region_type == " Marker",]
               
-#transects
-start <- Log[Log$Region_class == " ST" | Log$Region_class == "ST", c("Region_class", "Date_s","Time_s","Lat_s","Lon_s","Region_name")]
-end <- Log[Log$Region_class == " ET" | Log$Region_class == "ET", c("Region_class", "Date_s","Time_s","Lat_s","Lon_s","Region_name")]
+#transects 
+start <- Log[grep("ST", Log$Region_name, ignore.case=TRUE), c("Region_class", "Date_s","Time_s","Lat_s","Lon_s","Region_name")]
+end <- Log[grep("ET", Log$Region_name, ignore.case=TRUE), c("Region_class", "Date_s","Time_s","Lat_s","Lon_s","Region_name")]
 
 if (nrow(start) == nrow(end)){
 transects <- data.frame(start=start, end=end)
 } else {
-  stop("Different number of start (ST = ", nrow(start), ") and end (ET = ", nrow(end), ") transects in 'Region_class' column of CruiseLog.csv where 'Region_type = Marker'")
+  stop("Different number of start (ST = ", nrow(start), ") and end (ET = ", nrow(end), ") transects in 'Region_name' column of CruiseLog.csv")
 }
 
 #trawling
-trawls <- Log[Log$Region_class == " SD" | Log$Region_class == "SD", c("Region_class", "Date_s","Time_s","Lat_s","Lon_s","Region_name")]
+trawls <- Log[grep("SD", Log$Region_name, ignore.case=TRUE), c("Region_class", "Date_s","Time_s","Lat_s","Lon_s","Region_name")]
 
 
 #analysis
@@ -172,7 +173,7 @@ regionlabs <- region[!duplicated(region$set1),]
 
 
 #ctd
-ctd <- Log[Log$Region_class == " CTD" | Log$Region_class == "CTD", c("Region_class", "Date_s","Time_s","Lat_s","Lon_s","Region_name")]
+ctd <- cruiselog[grep("ctd", cruiselog$Region_name, ignore.case=TRUE), c("Region_class", "Date_s","Time_s","Lat_s","Lon_s","Region_name")]
 
 
 
@@ -200,7 +201,8 @@ for (i in species){
   nasc.df$alpha[nasc.df$Region_class == i] <- 1
 }
 
-
+#set breaks
+breaks <- signif(classIntervals(nasc.df$PRC_NASC, 5, style = "kmeans")$brks,1)[-1]
 
 
 ######################################################
@@ -294,9 +296,9 @@ if(shiplog == TRUE) {
 
 #regions
 if(analysis == "Regions") {
-  base <- base + geom_segment(data = region, aes_string(x = "Lon_s", y = "Lat_s", 
-                              xend = "Lon_e", yend = "Lat_e", colour="set1", 
-                              alpha = "alpha"), size = linesize) +
+  base <- base + geom_point(data = nasc.df, aes_string(x = "Lon_S", y = "Lat_S", 
+                              colour="set1", alpha = "alpha"), 
+                              pch = 20, size = linesize) +
                  scale_alpha_identity()
 }
 
@@ -305,7 +307,7 @@ if(analysis == "NASC") {
   base <- base + geom_point(data = nasc.df, aes_string(x = "Lon_S", y = "Lat_S",
                             colour="set1", alpha = "alpha", size = "PRC_NASC"), pch = 20, 
                             max_size = maxsize) +
-                 scale_size_area(max_size = maxsize, name = "NASC") +
+                 scale_size_area(max_size = maxsize, name = "NASC", breaks = breaks) +
                  scale_alpha_identity()
 }
 

@@ -1,20 +1,15 @@
-### load or install
-have <- "classInt" %in% installed.packages()[,"Package"]
-if (have == FALSE){
-  install.packages("classInt", repos = "http://cran.stat.sfu.ca/")
-}
-
 
 require(ggplot2)
 require(grid)
 require(PBSmapping)
 require(classInt)
+require(plyr)
 
-# set working directory 
-setwd('..');setwd('..')
+#move back to parent directory (cruise name)
+setwd('..'); setwd('..')
 
 # load catch data
-catch <- read.csv("Other data/RAW Catch data from GFBio.csv", header=T, stringsAsFactors = FALSE)
+catch <- read.csv("Other data/LaPerouse2014_Catch.csv", header=T, stringsAsFactors = FALSE)
 
 # load cruise log
 log <- read.csv("Other data/Log/Cruiselog.csv", header=T, stringsAsFactors = FALSE)
@@ -22,17 +17,16 @@ log <- log[!(log$Lat_s == 999),]
 
 
 
-
-
 ############################################################################
 # percent catch by tow
-catch$FE_TOTAL_CATCH_WEIGHT[is.na(catch$FE_TOTAL_CATCH_WEIGHT)] <- 0
-catch$WT[is.na(catch$WT)] <- 0
-catch$PERCENT <- catch$WT/catch$FE_TOTAL_CATCH_WEIGHT*100
+
+catch$CATCH_WEIGHT[is.na(catch$CATCH_WEIGHT)]  <- 0
+catch <- ddply(catch, .(SET), transform, TOTAL_CATCH = sum(CATCH_WEIGHT))
+catch$PERCENT <- round(catch$CATCH_WEIGHT/catch$TOTAL_CATCH*100)
 
 
 ## total catch data for all sets combined
-total.catch <- aggregate(WT ~ SPECIES_DESC, sum, data = catch)
+total.catch <- aggregate(CATCH_WEIGHT ~ SPECIES_DESC, sum, data = catch)
 
 
 ## Number of species to include in 'top' species
@@ -51,7 +45,7 @@ pal <- colorRampPalette(cols[1:leg],space = c("rgb"),interpolate = c("spline"))(
 # plot percentage of total catch for the survey
 
 # percent catch
-total.catch$percent <- total.catch$WT/sum(total.catch$WT)*100
+total.catch$percent <- round(total.catch$CATCH_WEIGHT/sum(total.catch$CATCH_WEIGHT)*100,4)
 
 # top species 
 top.catch <- tail(total.catch[order(total.catch$percent),],top)  
@@ -59,13 +53,13 @@ top.catch$SPECIES_DESC <- as.factor(top.catch$SPECIES_DESC)
 
 # group the rest into 'other'
 other.catch <- head(total.catch[order(total.catch$percent),],nrow(total.catch)-top) 
-other <- data.frame(SPECIES_DESC="OTHER",
-                    WT = sum(other.catch$WT), 
+other <- data.frame(SPECIES_DESC="Other",
+                    CATCH_WEIGHT = sum(other.catch$CATCH_WEIGHT), 
                     percent = sum(other.catch$percent))
 
 # bind together and order
 top.catch <- rbind(top.catch, other)
-top.catch$WT <- round(top.catch$WT)
+top.catch$CATCH_WEIGHT <- round(top.catch$CATCH_WEIGHT)
 top.catch <- top.catch[order(top.catch$percent),]
 ord.catch <- top.catch[order(top.catch$SPECIES_DESC),]
 
@@ -81,7 +75,7 @@ pal.t <- colorRampPalette(cols[1:(leg+1)],space = c("rgb"),interpolate = c("spli
 plototal <- ggplot(data = top.catch) +
       geom_bar(aes(x=1, y = percent, fill = SPECIES_DESC), stat = "identity", colour="black", size=.05)+
       scale_fill_manual(values= pal.t, name = "Species", 
-                        labels = paste(ord.catch$SPECIES_DESC," - ",ord.catch$WT,"kg", sep=""),
+                        labels = paste(ord.catch$SPECIES_DESC," - ",ord.catch$CATCH_WEIGHT,"kg", sep=""),
                         guide=guide_legend(override.aes = list(colour=NA)))+
       scale_y_continuous(limits=c(0,100))+
       coord_polar(theta = "y")+
@@ -105,6 +99,7 @@ dev.off()
 
 
 
+
 ############################################################################
 ##  plot percent catch per set 
 # 1) for species in analysis region only
@@ -124,7 +119,7 @@ pal.a <- colorRampPalette(cols[1:(leg+1)],space = c("rgb"),interpolate = c("spli
 ## plot
 ggplot(data = analysis.catch) +
   geom_bar(aes(x=factor(SET), y = PERCENT, fill = SPECIES_DESC), stat = "identity")+
-  scale_fill_manual(values= pal, name = "Species")+
+  #scale_fill_manual(values= pal, name = "Species")+
   labs(x="SET")+
   theme_bw()+
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
@@ -135,7 +130,7 @@ ggplot(data = analysis.catch) +
 ##  plot percent catch per set 
 # 2) for top species only
 
-main.species <- tail(total.catch$SPECIES_DESC[order(total.catch$WT)],top)             
+main.species <- tail(total.catch$SPECIES_DESC[order(total.catch$CATCH_WEIGHT)],top)             
 main.catch <- catch[catch$SPECIES_DESC %in% main.species,]
 
 # plot
@@ -154,10 +149,15 @@ ggplot(data = main.catch) +
 # Georeference catch data 
 
 # merge catch data with xy data from log
-sdlog <- log[log$Region_class == " SD",]
-sdlog$SET <- grep( "0+" , sdlog$Region_name)
+sdlog <- log[grep("SD", log$Region_name, ignore.case=TRUE),] #find SD
+sets <- unlist(strsplit(sdlog$Region_name, split = 'SD')) #clean SD
+sdlog$SET <- sub("^[0]+", "", sets[seq(2, length(sets), 2)]) #remove zeros
 catch.xy <- merge(catch, sdlog, by="SET")
 set.xy <- aggregate(. ~ SET, mean, data = catch.xy[c("Lat_s","Lon_s", "SET")])
+
+#check --are all the sets present in the echoview log?
+sort(unique(as.numeric(sdlog$SET)))
+unique(catch$SET)
 
 # merge main and analysis catch subsets with xy data from log
 main.catch.xy <- merge(main.catch, sdlog, by="SET")
@@ -177,10 +177,9 @@ land <- data.frame(landC)
 
 ##########################################################################
 # Map Weight (kg)]
-
-breaks <- signif(classIntervals(main.catch.xy$WT, 5, style = "kmeans")$brks,1)[-1]
-
   
+breaks <- signif(classIntervals(main.catch.xy$CATCH_WEIGHT, 5, style = "kmeans")$brks,1)[-1]
+
 mapkg <-  ggplot(data = NULL) + 
   # facets
   facet_wrap(~SPECIES_DESC, nrow=2)+
@@ -189,7 +188,7 @@ mapkg <-  ggplot(data = NULL) +
                fill = "gray80", colour = "gray60", size = .1) +
   # trawl points
   geom_point(data = main.catch.xy, aes(x = Lon_s, y = Lat_s, 
-                                  colour = SPECIES_DESC, size = WT), pch=20)+
+                                  colour = SPECIES_DESC, size = CATCH_WEIGHT), pch=20)+
   geom_text(data = set.xy, aes(x = Lon_s, y = Lat_s, label = SET), pch = 4, size = 2)+
   scale_size_area(max_size = 12, name = "Weight (kg)", breaks = breaks) +
   scale_colour_manual(values= pal, name = "Species")+

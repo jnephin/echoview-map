@@ -9,7 +9,7 @@ setwd('..'); setwd('..')
 ###--------------------------------------------####
 
 #location of EV files
-EVdir <- "Acoustics/Echoview/Transect EV Files/Echoview 5.4 updated"
+EVdir <- "Acoustics/Echoview/Transect EV Files"
 
 #location of calibration file (.ecs)
 CALdir <- "Other data"

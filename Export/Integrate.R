@@ -1,5 +1,4 @@
 require(RDCOMClient)
-setwd(file.path(getwd(),"EchoviewR/Export"))
 source("1_Paths.R")
 
 
@@ -141,7 +140,9 @@ EVApp$Quit()
 #########################################################################################
 for (j in variables) {
 
-exp.list <- list.files(file.path(getwd(), EXPdir, j), pattern="*IntegratedByCells.csv")
+  unlink(file.path(getwd(), EXPdir, j, "IntegratedByCells.csv"))
+  
+  exp.list <- list.files(file.path(getwd(), EXPdir, j), pattern="*IntegratedByCells.csv")
 
 columns <- c("Process_ID", "Interval", "Layer", "Sv_mean",	"NASC",	"Layer_depth_min",   "Layer_depth_max", "VL_start",	"VL_end",	"Date_S",	 "Time_S",	 "Lat_S",	 "Lon_S",	 "Exclude_below_line_depth_mean",	 "Processing_version",	 "Processing_date",	 "Processing_time",	 "EV_filename",	 "Alpha",	 "Gain_constant",	 "Noise_Sv_1m",	 "Minimum_Sv_threshold_applied",	 "Minimum_integration_threshold",	 "Maximum_Sv_threshold_applied",	 "Maximum_integration_threshold",	 "Exclude_above_line_applied",	 "Exclude_above_line_depth_mean",	 "Exclude_below_line_applied",	 "Standard_deviation")
 
@@ -167,6 +168,8 @@ if (is.null(df)) {
 #########################################################################################
 for (j in variables) {
   
+  unlink(file.path(getwd(), EXPdir, j, "IntegratedByRegions.csv"))
+  
   exp.list <- list.files(file.path(getwd(), EXPdir, j), pattern="*IntegratedByRegions.csv")
   
   columns <- c("Region_ID",   "Region_name",   "Region_class",	 "Process_ID", "Sv_mean",	 "NASC",	 "VL_start",	 "VL_end",	 "Date_S",	 "Time_S",	 "Lat_S",	 "Lon_S",	 "Exclude_below_line_depth_mean",	 "Processing_version",	 "Processing_date",	 "Processing_time",	 "EV_filename",	 "Alpha",	 "Gain_constant",	 "Noise_Sv_1m",	 "Minimum_Sv_threshold_applied",	 "Minimum_integration_threshold",	 "Maximum_Sv_threshold_applied",	 "Maximum_integration_threshold",	 "Exclude_above_line_applied",	 "Exclude_above_line_depth_mean",	 "Exclude_below_line_applied",	 "Standard_deviation")
@@ -191,6 +194,8 @@ for (j in variables) {
 # By cells by region
 #########################################################################################
 for (j in variables) {
+  
+  unlink(file.path(getwd(), EXPdir, j, "IntegratedByRegionsByCells.csv"))
   
   exp.list <- list.files(file.path(getwd(), EXPdir, j), pattern="*IntegratedByRegionsByCells.csv")
   

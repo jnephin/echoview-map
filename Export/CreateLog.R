@@ -1,5 +1,4 @@
 require(RDCOMClient)
-setwd(file.path(getwd(),"EchoviewR/Export"))
 source("1_Paths.R")
 
 
@@ -73,6 +72,8 @@ EVApp$Quit()
 ################################################
 #           Combine all .csv logs              #
 ################################################
+
+unlink(file.path(getwd(), LOGdir, "CruiseLog.csv"))
 
 log.list <- list.files(file.path(getwd(), LOGdir), pattern="*.csv")
 
