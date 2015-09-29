@@ -36,12 +36,28 @@ unique(log$Region_class[log$Region_type == " Analysis"])
 ##########################################################################################
 # prep NASC
 
+
+## FOR REGION EXPORTS
+
 # sum nasc by region by cell by interval (across depth bins)
 int_regions <- ddply(nasc, .(Region_class, Region_ID, Region_name, Lat_S, Lon_S, Interval, EV_filename), 
              summarise,
              NASC = sum(PRC_NASC),
              Date = head(Date_S,1),
              Time = head(Time_S,1))
+
+#plot regions
+ggplot(data = int_regions, aes(x = Lon_S, y = Lat_S, colour = Region_class))+
+  geom_point()+
+  theme_bw()
+
+# change file name into transect
+int_regions$Transect <- substr(int_regions$EV_filename, 63, 67)
+int_regions <- int_regions[,c( "Date", "Time", "Interval","Lat_S","Lon_S", "Region_class", "Region_ID", "Region_name","NASC", "Transect")]
+
+
+
+## FOR CELL EXPORTS
 
 # sum nasc by cell by interval (across depth bins)
 int_cells <- ddply(nasc_cells, .(Lat_S, Lon_S, Interval, EV_filename),
@@ -53,12 +69,6 @@ int_cells <- ddply(nasc_cells, .(Lat_S, Lon_S, Interval, EV_filename),
 # remove bad data
 int_cells <- int_cells[!int_cells$Lat_S == 999,]
 
-
-#plot regions
-ggplot(data = int_regions, aes(x = Lon_S, y = Lat_S, colour = Region_class))+
-  geom_point()+
-  theme_bw()
-  
 # check for off transect intervals
 # plot cells
 ggplot(data = int_cells, aes(x = Lon_S, y = Lat_S))+
@@ -66,37 +76,20 @@ ggplot(data = int_cells, aes(x = Lon_S, y = Lat_S))+
   geom_text(aes(label = Interval), size = 3)+
   theme_bw()
 
-
-
-# add extra columns to cell nasc
-int_cells$Region_class <- "None"
-int_cells$Region_ID <- 0
-int_cells$Region_name <- "None"
-
-# remove records from cell nasc that match region intervals
-int_cells <- int_cells[!(int_cells$Interval %in% int_regions$Interval),]
-
-# bind region nasc and 'empty' cell nasc dataframes
-int <- rbind(int_regions, int_cells)
-int$Source <- c(rep("region",1080),rep("cell",452))
-  
-# plot all cells
-ggplot(data = int, aes(x = Lon_S, y = Lat_S, colour = Source))+
-  geom_point()+
-  #geom_text(aes(label = Interval), size = 1)+
-  theme_bw()
-
 # change file name into transect
-int$Transect <- substr(int$EV_filename, 63, 67)
-int <- int[,c( "Date", "Time", "Interval","Lat_S","Lon_S","Region_class","Region_ID","Region_name",   
-               "NASC","Source","Transect")]
+int_cells$Transect <- substr(int_cells$EV_filename, 63, 67)
+int_cells <- int_cells[,c( "Date", "Time", "Interval","Lat_S","Lon_S", "NASC","Transect")]
+
+
+
+
 
 ##########################################################################################
 ##########################################################################################
 # total distance travelled in survey
 
 # order
-int <- int[order(int$Interval),]
+int_cells <- int_cells[order(int_cells$Interval),]
 
 # distance between lat long points in nmi
 earth.dist <- function (long1, lat1, long2, lat2) {
@@ -115,26 +108,38 @@ earth.dist <- function (long1, lat1, long2, lat2) {
 }
 
 # loop through intervals in order
-for (j in 1:nrow(int)) {
-int$dist[j] <-  earth.dist(int$Lon_S[j], int$Lat_S[j], int$Lon_S[j+1], int$Lat_S[j+1])
+for (j in 1:nrow(int_cells)) {
+  int_cells$dist[j] <-  earth.dist(int_cells$Lon_S[j], int_cells$Lat_S[j], 
+                                   int_cells$Lon_S[j+1], int_cells$Lat_S[j+1])
 }
 
 # change last NA to zero
-int[nrow(int),c("dist")] <- 0
+int_cells[nrow(int_cells),c("dist")] <- 0
 
 # remove distance between transects
 rem <- NULL
-for (d in (1:nrow(int)-1)) {
-ind <- int$Transect[d] != int$Transect[d+1]
+for (d in (1:nrow(int_cells)-1)) {
+ind <- int_cells$Transect[d] != int_cells$Transect[d+1]
 rem[d] <- ind
 }
 
-int$dist[rem == TRUE] <- 0
+int_cells$dist[rem == TRUE] <- 0
 
+# remove distance where intervals are not sequential (e.g. between BT to RT)
+rem <- NULL
+for (d in (1:nrow(int_cells)-1)) {
+  ind <- int_cells$Interval[d] != (int_cells$Interval[d+1] - 1)
+  rem[d] <- ind
+}
+
+int_cells$dist[rem == TRUE] <- 0
+
+# check -- should all be close to .5 nmi
+summary(int_cells)
 
 # total distance covered on survey (in nautical miles)
-sum(int$dist)
-
+total <- sum(int_cells$dist)
+total
 
 
 
@@ -146,7 +151,7 @@ sp <- NULL
 data <- NULL
 for (s in summ$SPECIES_DESC){
   
-dn <- int[int$Region_class == s,]
+dn <- int_regions[int_regions$Region_class == s,]
 ds <- summ[summ$SPECIES_DESC == s,]
 dc <- coeff[coeff$Region_class == s,]
 
@@ -166,37 +171,54 @@ dn$density <- dn$NASC/ (4*pi*sigma_bs)
 dn$biomass <- dn$density * (ds$mean.weight/1000)
 
 # bind species data together
-assign(name, dn)
+data <- rbind(data, dn)
 
 }
 
-# summaries
-for (i in sp){
-print(i)
-print(summary(get(i)))
-}
+summary(data)
 
 
 
 ##########################################################################################
 ##########################################################################################
-# Average biomass (kg per nmi^2) per species over the survey area 
+# Average biomass 
 
 
-# calculate the total distance (area) covered by regions for each species
-# loop through intervals in order
-for (j in 1:nrow(int)) {
-  int$dist[j] <-  earth.dist(k$Lon_S[j], k$Lat_S[j], k$Lon_S[j+1], k$Lat_S[j+1])
+# get analysis regions from log
+analysis <- log[log$Region_type == " Analysis",]
+
+# calculate the total distance (linear transect area) covered by regions for each species
+dat <- NULL
+regions <- NULL
+for (p in unique(analysis$Region_class)){
+  da <- analysis[analysis$Region_class == p,]
+         # loop through intervals in order
+           for (l in 1:nrow(da)) {
+               da$dist[l] <-  earth.dist(da$Lon_s[l], da$Lat_s[l], da$Lon_e[l], da$Lat_e[l])
+           }
+  dat <- data.frame(Region_class = p, distance = sum(da$dist))
+  regions <- rbind(regions, dat)
 }
 
+# proportion of total survey that regions covered
+regions$proportion <- regions$distance/total
+regions
 
+
+
+# average biomass (kg per nmi^2) per species over their regions
 avg <- ddply(data, .(Region_class), summarise, 
              Density = mean(density),
              Biomass = mean(biomass))
+
+# merge with proportion of survey data
+avg <- merge(avg, regions, by = "Region_class")
+
+
+# average biomass (kg per nmi^2) per species over the survey area 
+avg$Density <- avg$Density * avg$proportion
+avg$Biomass <- avg$Biomass * avg$proportion
 avg
-
-
-
 
 
 
