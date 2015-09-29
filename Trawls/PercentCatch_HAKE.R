@@ -14,7 +14,7 @@ require(classInt)
 setwd('..');setwd('..')
 
 # load catch data
-catch <- read.csv("Other data/GFBio/catch.csv", header=T, stringsAsFactors = FALSE)
+catch <- read.csv("Other data/Fishing/catch.csv", header=T, stringsAsFactors = FALSE)
 
 # load cruise log
 log <- read.csv("Other data/Log/Cruiselog.csv", header=T, stringsAsFactors = FALSE, row.names=1)
@@ -30,6 +30,10 @@ catch$FE_TOTAL_CATCH_WEIGHT[is.na(catch$FE_TOTAL_CATCH_WEIGHT)] <- 0
 catch$CATCH_WEIGHT[is.na(catch$CATCH_WEIGHT)] <- 0
 catch$PERCENT <- catch$CATCH_WEIGHT/catch$FE_TOTAL_CATCH_WEIGHT*100
 colnames(catch)[4] <- "SET"
+
+# export summary
+catch_summ <- catch[c("SET","SPECIES_COMMON_NAME","CATCH_WEIGHT","PERCENT")]
+write.csv(catch_summ, file = "Other data/Fishing/catch_summary.csv")
 
 ## total catch data for all sets combined
 total.catch <- aggregate(CATCH_WEIGHT ~ SPECIES_COMMON_NAME, sum, data = catch)

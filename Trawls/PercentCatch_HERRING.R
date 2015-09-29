@@ -9,7 +9,7 @@ require(plyr)
 setwd('..'); setwd('..')
 
 # load catch data
-catch <- read.csv("Other data/LaPerouse2014_Catch.csv", header=T, stringsAsFactors = FALSE)
+catch <- read.csv("Other data/Fishing/catch.csv", header=T, stringsAsFactors = FALSE)
 
 # load cruise log
 log <- read.csv("Other data/Log/Cruiselog.csv", header=T, stringsAsFactors = FALSE)
@@ -24,6 +24,9 @@ catch$CATCH_WEIGHT[is.na(catch$CATCH_WEIGHT)]  <- 0
 catch <- ddply(catch, .(SET), transform, TOTAL_CATCH = sum(CATCH_WEIGHT))
 catch$PERCENT <- round(catch$CATCH_WEIGHT/catch$TOTAL_CATCH*100)
 
+# export summary
+catch_summ <- catch[c("SET","SPECIES_DESC","CATCH_WEIGHT","PERCENT")]
+write.csv(catch_summ, file = "Other data/Fishing/catch_summary.csv")
 
 ## total catch data for all sets combined
 total.catch <- aggregate(CATCH_WEIGHT ~ SPECIES_DESC, sum, data = catch)
@@ -45,7 +48,7 @@ pal <- colorRampPalette(cols[1:leg],space = c("rgb"),interpolate = c("spline"))(
 # plot percentage of total catch for the survey
 
 # percent catch
-total.catch$percent <- round(total.catch$CATCH_WEIGHT/sum(total.catch$CATCH_WEIGHT)*100,4)
+total.catch$percent <- round(total.catch$CATCH_WEIGHT/sum(total.catch$CATCH_WEIGHT)*100,5)
 
 # top species 
 top.catch <- tail(total.catch[order(total.catch$percent),],top)  

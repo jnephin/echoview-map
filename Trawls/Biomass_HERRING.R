@@ -72,8 +72,8 @@ int_cells <- int_cells[!int_cells$Lat_S == 999,]
 # check for off transect intervals
 # plot cells
 ggplot(data = int_cells, aes(x = Lon_S, y = Lat_S))+
-  #geom_point()+
-  geom_text(aes(label = Interval), size = 3)+
+  geom_point()+
+  #geom_text(aes(label = Interval), size = 3)+
   theme_bw()
 
 # change file name into transect
@@ -148,7 +148,9 @@ total
 # biomass calculation
 
 sp <- NULL
-data <- NULL
+data_a <- NULL
+data_b <- NULL
+
 for (s in summ$SPECIES_DESC){
   
 dn <- int_regions[int_regions$Region_class == s,]
@@ -158,25 +160,30 @@ dc <- coeff[coeff$Region_class == s,]
 name <- gsub( "\\s", "" , s)
 sp[s] <- name
 
-# Target strength by mean length (in cm)
-TS <- dc$m * log10(ds$weigted.mean.length/10) + dc$b
+  for (k in c("a","b")){
+    # Target strength by mean length (in cm)
+      TS <- dc$m[dc$choice == k] * log10(ds$weigted.mean.length/10) + dc$b[dc$choice == k]
 
-# Backscattering cross-section 
-sigma_bs <- 10 ^(TS/10)
+    # Backscattering cross-section 
+      sigma_bs <- 10 ^(TS/10)
 
-# Denisty (#/nmi^2)
-dn$density <- dn$NASC/ (4*pi*sigma_bs)
+    # Denisty (#/nmi^2)
+      dn$density <- dn$NASC/ (4*pi*sigma_bs)
 
-# Biomass (kg/nmi^2)
-dn$biomass <- dn$density * (ds$mean.weight/1000)
+    # Biomass (kg/nmi^2)
+      dn$biomass <- dn$density * (ds$mean.weight/1000)
 
-# bind species data together
-data <- rbind(data, dn)
+    # bind biomass estimates
+      assign(k,dn)
+  }
 
+# bind species data together (one dataframe for each biomass estimate)
+data_a <- rbind(data_a, a)
+data_b <- rbind(data_b, b)
 }
 
-summary(data)
-
+summary(data_a)
+summary(data_b)
 
 
 ##########################################################################################
@@ -207,19 +214,29 @@ regions
 
 
 # average biomass (kg per nmi^2) per species over their regions
-avg <- ddply(data, .(Region_class), summarise, 
+avg_a <- ddply(data_a, .(Region_class), summarise, 
              Density = mean(density),
              Biomass = mean(biomass))
 
+avg_b <- ddply(data_b, .(Region_class), summarise, 
+               Density = mean(density),
+               Biomass = mean(biomass))
+
 # merge with proportion of survey data
+avg <- merge(avg_a, avg_b, by = "Region_class")
 avg <- merge(avg, regions, by = "Region_class")
 
 
 # average biomass (kg per nmi^2) per species over the survey area 
-avg$Density <- avg$Density * avg$proportion
-avg$Biomass <- avg$Biomass * avg$proportion
+avg$Density.x <- avg$Density.x * avg$proportion
+avg$Biomass.x <- avg$Biomass.x * avg$proportion
+avg$Density.y <- avg$Density.y * avg$proportion
+avg$Biomass.y <- avg$Biomass.y * avg$proportion
+
+
+# biomass difference
+avg$Biomass_diff <- abs(avg$Biomass.x - avg$Biomass.y)
+
+# biomass (kg per nmi) estimates
 avg
-
-
-
 

@@ -7,10 +7,10 @@ require(plyr)
 setwd('..');setwd('..')
 
 # load  morpho data
-morpho <- read.csv("Other data/GFBio/morpho.csv", header=T, stringsAsFactors = FALSE)
+morpho <- read.csv("Other data/Fishing/morpho.csv", header=T, stringsAsFactors = FALSE)
 
 # load set lat long data
-sets <- read.csv("Other data/GFBio/sets.csv", header=T, stringsAsFactors = FALSE)
+sets <- read.csv("Other data/Fishing/sets.csv", header=T, stringsAsFactors = FALSE)
 
 # load echoview log
 log <- read.csv("Other data/Log/Cruiselog.csv", header=T, stringsAsFactors = FALSE, row.names=1)
@@ -133,7 +133,7 @@ dev.off()
 
 # calc mean for each species and each set
 mean.lengths <- ddply(morpho, .(SET, SPECIES_COMMON_NAME), summarise, 
-                      mean = round(mean(SPECIMEN_MORPHOMETRICS_VALUE)),
+                      mean = mean(SPECIMEN_MORPHOMETRICS_VALUE),
                       median = median(SPECIMEN_MORPHOMETRICS_VALUE),
                       sd = sd(SPECIMEN_MORPHOMETRICS_VALUE))
 
