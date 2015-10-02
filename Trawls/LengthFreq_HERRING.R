@@ -245,7 +245,7 @@ morph_sum <- ddply(comb, .(SPECIES_DESC), summarise,
 morph_sum
 
 # export
-write.csv(data, file = "Other data/Fishing/morpho_summary.csv")
+write.csv(morph_sum, file = "Other data/Fishing/morpho_summary.csv")
 
 
 #----------------------------------------------------------------#

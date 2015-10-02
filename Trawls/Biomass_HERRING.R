@@ -30,6 +30,9 @@ colnames(log)[1] <- "Region_ID"
 coeff <- read.csv("EchoviewR/Trawls/TS_coefficients.csv", header=T, stringsAsFactors = FALSE)
 
 
+#### Choose target strength - length regression constants (a or b estimtes)
+con <- "b"
+
 
 ##########################################################################################
 ##########################################################################################
@@ -39,13 +42,6 @@ coeff <- read.csv("EchoviewR/Trawls/TS_coefficients.csv", header=T, stringsAsFac
 log$Region_class <- sub( "\\s", "" , log$Region_class)
 reg <- unique(log$Region_class[log$Region_type == " Analysis"])
 reg
-
-# subset morpho summary to only include species from analysis regions
-# n = # of fish weighted and measured
-summ <- summ[summ$SPECIES_DESC %in% reg,]
-summ
-
-
 
 
 ##########################################################################################
@@ -107,6 +103,9 @@ int_regions$Region_class <- sub( "\\s", "" , int_regions$Region_class)
 ##########################################################################################
 # Update NASC for mixed regions based on TS and catch
 
+
+
+### Calculate nasc ratio
                       
 # mixed regions
 reg
@@ -124,7 +123,7 @@ matched$sets <- c(14,29,29,29,29)
 mat <- morph[morph$SET %in% matched$sets,]
 
 # merge coeff data with mat
-mat <- merge(mat, coeff[coeff$choice == "a",1:3], by.x = "SPECIES_DESC", by.y = "Region_class")
+mat <- merge(mat, coeff[coeff$choice == con,1:3], by.x = "SPECIES_DESC", by.y = "Region_class")
 
 # calculate target strength to partition nasc
 mat$TS <- mat$m * log10(mat$mean.length.mm/10) + mat$b
@@ -132,15 +131,20 @@ mat$TS <- mat$m * log10(mat$mean.length.mm/10) + mat$b
 # calculate backscatter cross-section to partition nasc
 mat$sigma_bs <- 10 ^(mat$TS/10)
 
-# calculate total sigma_bs per set
-mat <- ddply(mat, .(SET), transform, total_sigma_bs = sum(sigma_bs))
-
-# calculate total number of individuals per set
-mat <- ddply(mat, .(SET), transform, total_N = sum(Estimated_N))
-
+# calculate  sigma_bs  * N
+mat$bsn <- mat$Estimated_N * mat$sigma_bs 
 
 # calculate the ratio to partition nasc
-mat$R <- 
+mat <- ddply(mat, .(SET), transform, sum_bsn = sum(bsn))
+mat$R <- mat$bsn/ mat$sum_bsn
+mat
+
+## check - sums should equal to 1 for each set
+ddply(mat, .(SET), summarise, sums = sum(R))
+
+
+
+### calculate NASC based on ratio
 
 # get nasc data for mixed regions only
 int_mix <- int_regions[int_regions$Region_class %in% mixed,]
@@ -157,30 +161,30 @@ dim(int_sets)
 mix_data <- NULL
 for (y in unique(int_sets$sets)){
   # partiton data by reference set
-    per <- mat[mat$SET == y,]
-    int_per <- int_sets[int_sets$sets == y,]
+    rat <- mat[mat$SET == y,]
+    int_s <- int_sets[int_sets$sets == y,]
           # create table for each species of mix
-          for (z in per$SPECIES_DESC){
-            pdat <- int_per
+          for (z in rat$SPECIES_DESC){
+            pdat <- int_s
             pdat$Region_class <- z
-            pdat$NASC <- pdat$NASC * (per$PERCENT[per$SPECIES_DESC == z]/100)
+            pdat$NASC <- pdat$NASC * (rat$R[rat$SPECIES_DESC == z])
             # bind species tables together
             mix_data <- rbind(mix_data, pdat)
           }
 }
 
-# check - percent of NASC which remains
+## check - percent of NASC which remains - should be 100%
 100 - (sum(int_mix$NASC) - sum(mix_data$NASC))/sum(int_mix$NASC) *100
 
-# should be close to percent of catch
-sum(mat$PERCENT)/(length(unique(mat$SET))*100) *100
 
 
 
-## remove mixed regions from int_regions data
+### append int_region data with partitioned regions
+
+# remove mixed regions from int_regions data
 int_regions <- int_regions[!int_regions$Region_class %in% mixed,]
 
-## add partitoned regions back into int_regions data
+# add partitoned regions back into int_regions data
 int_regions <- rbind(int_regions, mix_data[names(int_regions)])
 
 
@@ -204,7 +208,7 @@ man <- merge(analysis, matched, by=c("Region_ID", "Region_name", "Region_class",
 mix_reg <- NULL
 for (y in unique(man$sets)){
   # partiton data by reference set
-  sp_sets <- cats[cats$SET == y,]
+  sp_sets <- mat[mat$SET == y,]
   man_sets <- man[man$sets == y,]
   # create table for each species of mix
   for (z in sp_sets$SPECIES_DESC){
@@ -276,7 +280,7 @@ for (d in (1:nrow(int_cells)-1)) {
 int_cells$dist[rem == TRUE] <- 0
 
 # check -- should all be close to .5 nmi
-summary(int_cells)
+summary(int_cells$dist)
 
 # total distance covered on survey (in nautical miles)
 total <- sum(int_cells$dist)
@@ -315,6 +319,9 @@ regions
 ##########################################################################################
 # biomass calculation
 
+# only species in updated analysis regions
+summ <- summ[summ$SPECIES_DESC %in% regions$Region_class,]
+
 sp <- NULL
 data <- NULL
 
@@ -327,9 +334,8 @@ dc <- coeff[coeff$Region_class == s,]
 name <- gsub( "\\s", "" , s)
 sp[s] <- name
 
-  for (k in c("a","b")){
     # Target strength by mean length (in cm)
-      TS <- dc$m[dc$choice == k] * log10(ds$weigted.mean.length/10) + dc$b[dc$choice == k]
+      TS <- dc$m[dc$choice == con] * log10(ds$weigted.mean.length/10) + dc$b[dc$choice == con]
 
     # Backscattering cross-section 
       sigma_bs <- 10 ^(TS/10)
@@ -338,17 +344,10 @@ sp[s] <- name
       dn$density <- dn$NASC/ (4*pi*sigma_bs)
 
     # Biomass (kg/nmi^2)
-      dn$biomass <- dn$density * (ds$mean.weight/1000)
-
-    # estimate a or b?
-      dn$estimate <- k
-      
-    # assign table
-      assign(k,dn)
-  }
+      dn$biomass <- dn$density * (ds$mean.weight.kg)
 
 # bind species data together
-data <- rbind(data, a, b)
+data <- rbind(data, dn)
 
 }
 
@@ -362,7 +361,7 @@ summary(data)
 
 
 # average biomass (kg per nmi^2) per species over their regions
-tmp <- ddply(data, .(Region_class, estimate), summarise, 
+tmp <- ddply(data, .(Region_class), summarise, 
              Density = mean(density),
              Biomass = mean(biomass))
 
@@ -372,11 +371,30 @@ mrg <- merge(tmp, regions, by = "Region_class")
 
 
 # average biomass (kg per nmi^2) per species over the survey area 
-avg <- data.frame(Region_class = mrg$Region_class, 
-                  Estimate = mrg$estimate,
-                  Density = mrg$Density * mrg$proportion,
-                  Biomass = mrg$Biomass * mrg$proportion)
-avg
+assign(paste("avg", con, sep="_"), data.frame(Region_class = mrg$Region_class,
+                                    Estimate = con,
+                                    Density.sqnmi = mrg$Density * mrg$proportion,
+                                    Biomass.kg.sqnmi = mrg$Biomass * mrg$proportion))
+get(paste("avg", con, sep="_"))
+
+
+
+
+
+# ---------------------------------------------------------------------#
+# RERUN script with other estimates for TS-length regression constants
+
+# bind density and biomass from difference estimates
+avg <- rbind(avg_a,avg_b)
+avg <- avg[order(avg$Region_class),]
+
+# scale up biomass to area of interest
+# area of survey (spatial extent) -> for Laperouse 2015 -> 3300 sq nmi
+avg$Total.Biomass.kg <- avg$Biomass.kg.sqnmi * 3300
+
+
+# exports
+write.csv(avg, file = "Other data/Fishing/Biomass.csv")
 
 
 # standard deviation of biomass estimates
