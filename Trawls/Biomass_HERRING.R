@@ -10,8 +10,11 @@ setwd('..');setwd('..')
 ##########################################################################################
 # load data
 
-# load mean lengths and weight
+# load mean lengths and weight per species
 summ <- read.csv("Other data/Fishing/morpho_summary.csv", header=T, stringsAsFactors = FALSE, row.names = 1)
+
+# load mean lengths, weights and counts per set per species
+morph <- read.csv("Other data/Fishing/morpho_counts.csv", header=T, stringsAsFactors = FALSE, row.names = 1)
 
 # load backscatter data
 nasc <- read.csv("Acoustics/Echoview/Exports/Sv raw pings T2/IntegratedByRegionsByCells.csv", header=T, 
@@ -26,23 +29,21 @@ colnames(log)[1] <- "Region_ID"
 # load target strength coefficients
 coeff <- read.csv("EchoviewR/Trawls/TS_coefficients.csv", header=T, stringsAsFactors = FALSE)
 
-# load catch data 
-catch <- read.csv("Other data/Fishing/catch_summary.csv", header=T, stringsAsFactors = FALSE, row.names = 1)
-
-
 
 
 ##########################################################################################
 ##########################################################################################
 # species of interest
 
-# subset morpho summary to only include species from analysis regions
-summ <- summ[summ$SPECIES_DESC %in% unique(log$Region_class),]
-
 # analysis regions classes
-unique(log$Region_class[log$Region_type == " Analysis"])
+log$Region_class <- sub( "\\s", "" , log$Region_class)
+reg <- unique(log$Region_class[log$Region_type == " Analysis"])
+reg
 
-
+# subset morpho summary to only include species from analysis regions
+# n = # of fish weighted and measured
+summ <- summ[summ$SPECIES_DESC %in% reg,]
+summ
 
 
 
@@ -96,60 +97,55 @@ ggplot(data = int_regions, aes(x = Lon_S, y = Lat_S, colour = Region_class))+
 int_regions$Transect <- substr(int_regions$EV_filename, 63, 67)
 int_regions <- int_regions[,c( "Date", "Time", "Interval","Lat_S","Lon_S", "Region_class", "Region_ID", "Region_name","NASC", "Transect")]
 
+# remove leading space
+int_regions$Region_class <- sub( "\\s", "" , int_regions$Region_class)
 
 
 
 
 ##########################################################################################
 ##########################################################################################
-# Update NASC for mixed analysis regions
+# Update NASC for mixed regions based on TS and catch
 
-# analysis regions classes
-reg <- unique(log$Region_class[log$Region_type == " Analysis"])
-reg
-
-
-
-### ----------------------------------------------------------------------------- ###
-### ----------------------------------------------------------------------------- ###
-#                         ADAPT REGIONS AND MATCHING SETS                           #
-### ----------------------------------------------------------------------------- ###
-### ----------------------------------------------------------------------------- ###
-
+                      
 # mixed regions
-mixed <- c(" Herring-Rockfish mix", " Hake mix")
+reg
+mixed <- c("Herring-Rockfish mix", "Hake mix")
 
-# add sets
+# mixed regions from log
 matched <- log[log$Region_class %in% mixed,c("Region_ID","Region_name","Region_class","File")]
 matched$File <- substring(matched$File, 1,5)
 colnames(matched)[4] <- "Transect"
+
+# add matching sets
 matched$sets <- c(14,29,29,29,29)
 
-# catch data for mixed sets
-cats <- catch[catch$SET %in% matched$sets,]
+# mean weight, length and count data for mixed sets
+mat <- morph[morph$SET %in% matched$sets,]
 
-# change species names to reflect analysis region names
-cats$SPECIES_DESC[grep("rockfish", cats$SPECIES_DESC, ignore.case=T)] <- " Rockfish"
-cats$SPECIES_DESC[grep("herring", cats$SPECIES_DESC, ignore.case=T)] <- " Herring"
-cats$SPECIES_DESC[grep("hake", cats$SPECIES_DESC, ignore.case=T)] <- " Hake"
+# merge coeff data with mat
+mat <- merge(mat, coeff[coeff$choice == "a",1:3], by.x = "SPECIES_DESC", by.y = "Region_class")
+
+# calculate target strength to partition nasc
+mat$TS <- mat$m * log10(mat$mean.length.mm/10) + mat$b
+
+# calculate backscatter cross-section to partition nasc
+mat$sigma_bs <- 10 ^(mat$TS/10)
+
+# calculate total sigma_bs per set
+mat <- ddply(mat, .(SET), transform, total_sigma_bs = sum(sigma_bs))
+
+# calculate total number of individuals per set
+mat <- ddply(mat, .(SET), transform, total_N = sum(Estimated_N))
 
 
-### ----------------------------------------------------------------------------- ###
-### ----------------------------------------------------------------------------- ###
-### ----------------------------------------------------------------------------- ###
+# calculate the ratio to partition nasc
+mat$R <- 
 
-
-
-# only include region species
-cats <- cats[cats$SPECIES_DESC %in% reg,]
-
-# group species
-cats <-ddply(cats, .(SET, SPECIES_DESC), summarise, PERCENT = sum(PERCENT))
-
-# for each region class, region id and transect create a seperate table
+# get nasc data for mixed regions only
 int_mix <- int_regions[int_regions$Region_class %in% mixed,]
 
-# merge matched sets with int_mix
+# add set number to int_mix
 int_sets <- merge(int_mix, matched, by=c("Region_ID", "Region_name", "Region_class", "Transect"))
 
 # check for the same length
@@ -161,7 +157,7 @@ dim(int_sets)
 mix_data <- NULL
 for (y in unique(int_sets$sets)){
   # partiton data by reference set
-    per <- cats[cats$SET == y,]
+    per <- mat[mat$SET == y,]
     int_per <- int_sets[int_sets$sets == y,]
           # create table for each species of mix
           for (z in per$SPECIES_DESC){
@@ -177,7 +173,7 @@ for (y in unique(int_sets$sets)){
 100 - (sum(int_mix$NASC) - sum(mix_data$NASC))/sum(int_mix$NASC) *100
 
 # should be close to percent of catch
-sum(cats$PERCENT)/(length(unique(cats$SET))*100) *100
+sum(mat$PERCENT)/(length(unique(mat$SET))*100) *100
 
 
 

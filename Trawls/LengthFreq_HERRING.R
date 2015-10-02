@@ -193,40 +193,88 @@ print(mapmean)
 
 
 
-
-
 ##########################################################################################
 ##########################################################################################
-# EXPORT mean length of analysis region species
+# EXPORT mean length, weight and counts of analysis region species
+
+# group rockfish catch together
+rock <- grep("rockfish", catch$SPECIES_DESC, ignore.case=T)
+r_catch <- catch[rock,c("SET", "SPECIES_DESC", "CATCH_WEIGHT")]
+wr_catch <- catch[-rock,c("SET", "SPECIES_DESC", "CATCH_WEIGHT")]
+rs_catch <- ddply(r_catch, .(SET), transform, CATCH_WEIGHT = sum(CATCH_WEIGHT))
+grp_catch <- rbind(wr_catch,rs_catch)
+
+# merge catch and morpho
+comb <- merge(morpho, grp_catch[c("SET", "SPECIES_DESC", "CATCH_WEIGHT")], by = c("SET", "SPECIES_DESC"))
 
 
 # compare morpho species to analysis species
 species_full
-unique(morpho$SPECIES_DESC)
+unique(comb$SPECIES_DESC)
+
+## -- choose cut off for age 1 hake using histogram
 
 # reclassify morpho species to fit analysis region species
-morpho$SPECIES_DESC[morpho$SPECIES_DESC == " PACIFIC HAKE" & 
-         morpho$SPECIMEN_MORPHOMETRICS_VALUE > 350  ] <- " Hake"
-morpho$SPECIES_DESC[morpho$SPECIES_DESC == " PACIFIC HAKE" & 
-         morpho$SPECIMEN_MORPHOMETRICS_VALUE < 350  ] <- " Age-1 Hake"
-morpho$SPECIES_DESC[morpho$SPECIES_DESC == " PACIFIC HERRING"] <- " Herring"
-morpho$SPECIES_DESC[morpho$SPECIES_DESC == " YELLOWTAIL ROCKFISH"] <- " Rockfish"
-morpho$SPECIES_DESC[morpho$SPECIES_DESC == " WIDOW ROCKFISH"] <- " Rockfish"
-morpho$SPECIES_DESC[morpho$SPECIES_DESC == " REDSTRIPE ROCKFISH"] <- " Rockfish"
+comb$SPECIES_DESC[comb$SPECIES_DESC == "PACIFIC HAKE" & 
+                    comb$SPECIMEN_MORPHOMETRICS_VALUE > 350  ] <- "Hake"
+comb$SPECIES_DESC[comb$SPECIES_DESC == "PACIFIC HAKE" & 
+                    comb$SPECIMEN_MORPHOMETRICS_VALUE < 350  ] <- "Age-1 Hake"
+comb$SPECIES_DESC[grep("herring", comb$SPECIES_DESC, ignore.case=T)] <- "Herring"
+comb$SPECIES_DESC[grep("rockfish", comb$SPECIES_DESC, ignore.case=T)] <- "Rockfish"
+comb$SPECIES_DESC[grep("sardine", comb$SPECIES_DESC, ignore.case=T)] <- "Sardine"
+comb$SPECIES_DESC[grep("myctophid", comb$SPECIES_DESC, ignore.case=T)] <- "Myctophids"
+comb$SPECIES_DESC[grep("cps", comb$SPECIES_DESC, ignore.case=T)] <- "CPS"
+comb$SPECIES_DESC[grep("mackerel", comb$SPECIES_DESC, ignore.case=T)] <- "Mackerel"
+comb$SPECIES_DESC[grep("pollock", comb$SPECIES_DESC, ignore.case=T)] <- "Pollock"
+comb$SPECIES_DESC[grep("eulachon", comb$SPECIES_DESC, ignore.case=T)] <- "Eulachon"
+
+
 
 # check species
-table(morpho$SPECIES_DESC)
+table(comb$SPECIES_DESC)
 
-# check weight units
-table(morpho$WEIGHT_UNITS)
+# check weight units - divide by 1000 in morph_sum if grams
+table(comb$WEIGHT_UNITS)
 
 # calc mean length and weight for each species
-data <- ddply(morpho, .(SPECIES_DESC), summarise, 
-                      mean.length = mean(SPECIMEN_MORPHOMETRICS_VALUE),
-                      weigted.mean.length = sum(SPECIMEN_MORPHOMETRICS_VALUE * WEIGHT)/sum(WEIGHT),
-                      mean.weight = mean(WEIGHT),
+morph_sum <- ddply(comb, .(SPECIES_DESC), summarise, 
+                      mean.length.mm = mean(SPECIMEN_MORPHOMETRICS_VALUE),
+                      weigted.mean.length.mm = sum(SPECIMEN_MORPHOMETRICS_VALUE * WEIGHT)/sum(WEIGHT),
+                      mean.weight.kg = mean(WEIGHT)/1000,
                       n = length(WEIGHT))
+morph_sum
 
-
-# export data
+# export
 write.csv(data, file = "Other data/Fishing/morpho_summary.csv")
+
+
+#----------------------------------------------------------------#
+
+
+# calc mean weights (in kg) for each species and each set
+morph_count <- ddply(comb, .(SET, SPECIES_DESC), summarise,
+                mean.length.mm = mean(SPECIMEN_MORPHOMETRICS_VALUE),
+                mean.weight.kg = mean(WEIGHT)/1000,
+                total.weight.kg = min(CATCH_WEIGHT))
+
+#merge catch and mean length data
+morph_count$Estimated_N <- round(morph_count$total.weight.kg/morph_count$mean.weight.kg)
+morph_count
+
+# export summary
+write.csv(morph_count, file = "Other data/Fishing/morpho_counts.csv")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
