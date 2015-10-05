@@ -1,3 +1,4 @@
+
 require(ggplot2)
 require(plyr)
 
@@ -11,10 +12,12 @@ setwd('..');setwd('..')
 # load data
 
 # load mean lengths and weight per species
-summ <- read.csv("Other data/Fishing/morpho_summary.csv", header=T, stringsAsFactors = FALSE, row.names = 1)
+summ <- read.csv("Other data/Fishing/morpho_summary.csv", header=T, stringsAsFactors = FALSE, 
+                 row.names = 1)
 
 # load mean lengths, weights and counts per set per species
-morph <- read.csv("Other data/Fishing/morpho_counts.csv", header=T, stringsAsFactors = FALSE, row.names = 1)
+morph <- read.csv("Other data/Fishing/morpho_counts.csv", header=T, stringsAsFactors = FALSE, 
+                  row.names = 1)
 
 # load backscatter data
 nasc <- read.csv("Acoustics/Echoview/Exports/Sv raw pings T2/IntegratedByRegionsByCells.csv", header=T, 
@@ -70,7 +73,10 @@ ggplot(data = int_cells, aes(x = Lon_S, y = Lat_S))+
   theme_bw()
 
 # change file name into transect
-int_cells$Transect <- substr(int_cells$EV_filename, 63, 67)
+tempf <- unlist(strsplit(int_cells$EV_filename, "[.]EV"))
+tempt <- unlist(strsplit(tempf, "/"))
+steps <- length(tempt)/length(tempf)
+int_cells$Transect <- tempt[(seq(steps,to=length(tempt),by=steps))]
 int_cells <- int_cells[,c( "Date", "Time", "Interval","Lat_S","Lon_S", "NASC","Transect")]
 
 
@@ -90,7 +96,10 @@ ggplot(data = int_regions, aes(x = Lon_S, y = Lat_S, colour = Region_class))+
   theme_bw()
 
 # change file name into transect
-int_regions$Transect <- substr(int_regions$EV_filename, 63, 67)
+tempf <- unlist(strsplit(int_regions$EV_filename, "[.]EV"))
+tempt <- unlist(strsplit(tempf, "/"))
+steps <- length(tempt)/length(tempf)
+int_regions$Transect <- tempt[(seq(steps,to=length(tempt),by=steps))]
 int_regions <- int_regions[,c( "Date", "Time", "Interval","Lat_S","Lon_S", "Region_class", "Region_ID", "Region_name","NASC", "Transect")]
 
 # remove leading space
@@ -103,9 +112,7 @@ int_regions$Region_class <- sub( "\\s", "" , int_regions$Region_class)
 ##########################################################################################
 # Update NASC for mixed regions based on TS and catch
 
-
 ## -- skip if there are no mixed regions
-
 
 ### Calculate nasc ratio
                       
@@ -115,8 +122,9 @@ mixed <- c("Herring-Rockfish mix", "Hake mix")
 
 # mixed regions from log
 matched <- log[log$Region_class %in% mixed,c("Region_ID","Region_name","Region_class","File")]
-matched$File <- substring(matched$File, 1,5)
+matched$File <- strsplit(matched$File, "[.]csv")
 colnames(matched)[4] <- "Transect"
+
 
 # add matching sets
 matched$sets <- c(14,29,29,29,29)
@@ -125,7 +133,7 @@ matched$sets <- c(14,29,29,29,29)
 mat <- morph[morph$SET %in% matched$sets,]
 
 # merge coeff data with mat
-mat <- merge(mat, coeff[coeff$choice == con,1:3], by.x = "SPECIES_DESC", by.y = "Region_class")
+mat <- merge(mat, coeff[coeff$choice == con,1:3], by.x = "SPECIES_COMMON_NAME", by.y = "Region_class")
 
 # calculate target strength to partition nasc
 mat$TS <- mat$m * log10(mat$mean.length.mm/10) + mat$b
@@ -166,10 +174,10 @@ for (y in unique(int_sets$sets)){
     rat <- mat[mat$SET == y,]
     int_s <- int_sets[int_sets$sets == y,]
           # create table for each species of mix
-          for (z in rat$SPECIES_DESC){
+          for (z in rat$SPECIES_COMMON_NAME){
             pdat <- int_s
             pdat$Region_class <- z
-            pdat$NASC <- pdat$NASC * (rat$R[rat$SPECIES_DESC == z])
+            pdat$NASC <- pdat$NASC * (rat$R[rat$SPECIES_COMMON_NAME == z])
             # bind species tables together
             mix_data <- rbind(mix_data, pdat)
           }
@@ -201,13 +209,11 @@ int_regions <- rbind(int_regions, mix_data[names(int_regions)])
 analysis <- log[log$Region_type == " Analysis",]
 
 # change file to transect
-analysis$File <- strsplit(analysis$File, ".csv")
+analysis$File <- strsplit(analysis$File, "[.]csv")
 colnames(analysis)[16] <- "Transect"
 
 
-
 ## -- skip if there are no mixed regions
-
 
 # merge matched sets with analysis
 man <- merge(analysis, matched, by=c("Region_ID", "Region_name", "Region_class", "Transect"))
@@ -219,7 +225,7 @@ for (y in unique(man$sets)){
   sp_sets <- mat[mat$SET == y,]
   man_sets <- man[man$sets == y,]
   # create table for each species of mix
-  for (z in sp_sets$SPECIES_DESC){
+  for (z in sp_sets$SPECIES_COMMON_NAME){
     pdat <- man_sets
     pdat$Region_class <- z
     # bind species tables together
@@ -321,39 +327,89 @@ regions
 
 
 
-
-
 ##########################################################################################
 ##########################################################################################
-# biomass calculation
+# biomass calculation for HAKE
 
-# only species in updated analysis regions
-summ <- summ[summ$SPECIES_DESC %in% regions$Region_class,]
 
-# merge nasc and morpho data
-im <- merge(int_regions, summ, by.x = c("Region_class"), by.y = c("SPECIES_DESC"))
+# get int data for hake region classes only
+int_hake <- int_regions[grep("hake",int_regions$Region_class, ignore.case=T),]
 
-## check - the same length unless region aren't in fishing data -> e.g. CPS
-dim(int_regions)
-dim(im)
+# add sets
+for_sets <- int_hake[!duplicated(int_hake[c("Region_ID", "Region_name", "Region_class", "Transect")]),] 
+for_sets$SET <- c(2, 2, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9)
+
+
+# merge sets and int hake data
+int_hake <- merge(int_hake, 
+                  for_sets[c("Region_ID", "Region_name", "Region_class", "Transect", "SET")], 
+                  by=c("Region_ID", "Region_name", "Region_class", "Transect"))
+
+# only hake morpho data
+morph_hake <- morph[grep("hake",morph$SPECIES_COMMON_NAME, ignore.case=T),]
+
+# merge hake nasc and morpho data
+him <- merge(int_hake, morph_hake, by.x = c("Region_class","SET"), by.y = c("SPECIES_COMMON_NAME", "SET"))
+
+## check - should be same length
+dim(int_hake)
+dim(him)
 
 # merge coeff data with him
-imc <- merge(im, coeff[coeff$choice == con,1:3], by = "Region_class")
+himc <- merge(him, coeff[coeff$choice == con,1:3], by = "Region_class")
+
+
+# biomass calculations
+
+  # Target strength by mean length (in cm)
+himc$TS <- himc$m * log10(himc$mean.length.mm/10) + himc$b
+  
+  # Backscattering cross-section 
+himc$sigma_bs <- 10 ^(himc$TS/10)
+  
+  # Denisty (#/nmi^2)
+himc$density <- himc$NASC/ (4*pi*himc$sigma_bs)
+  
+  # Biomass (kg/nmi^2)
+himc$biomass <- himc$density * (himc$mean.weight.kg)
+
+
+
+
+##########################################################################################
+##########################################################################################
+# biomass calculation for all other regions
+
+# get int data for all other region classes 
+int_other <- int_regions[-(grep("hake",int_regions$Region_class, ignore.case=T)),]
+
+# non-hake morpho summary data
+summ_other <- summ[-(grep("hake",summ$SPECIES_COMMON_NAME, ignore.case=T)),]
+
+# merge non-hake nasc and morpho data
+oim <- merge(int_other, summ_other, by.x = c("Region_class"), by.y = c("SPECIES_COMMON_NAME"))
+
+## check - the same length unless region aren't in fishing data -> e.g. CPS
+dim(int_other)
+dim(oim)
+
+# merge coeff data with him
+oimc <- merge(oim, coeff[coeff$choice == con,1:3], by = "Region_class")
 
 
 # biomass calculations
 
 # Target strength by mean length (in cm)
-imc$TS <- imc$m * log10(imc$weigted.mean.length.mm/10) + imc$b
+oimc$TS <- oimc$m * log10(oimc$weigted.mean.length.mm/10) + oimc$b
 
 # Backscattering cross-section 
-imc$sigma_bs <- 10 ^(imc$TS/10)
+oimc$sigma_bs <- 10 ^(oimc$TS/10)
 
 # Denisty (#/nmi^2)
-imc$density <- imc$NASC/ (4*pi*imc$sigma_bs)
+oimc$density <- oimc$NASC/ (4*pi*oimc$sigma_bs)
 
 # Biomass (kg/nmi^2)
-imc$biomass <- imc$density * (imc$mean.weight.kg)
+oimc$biomass <- oimc$density * (oimc$mean.weight.kg)
 
 
 
@@ -362,9 +418,13 @@ imc$biomass <- imc$density * (imc$mean.weight.kg)
 ##########################################################################################
 # Average biomass 
 
+#bind hake and other species in one table
+headers <- c("Region_class","Region_ID","Region_name","Transect","Date","Time","Interval","Lat_S","Lon_S","NASC","TS","sigma_bs","density","biomass" )
+bio <- rbind(himc[headers],oimc[headers])
+
 
 # average biomass (kg per nmi^2) per species over their regions
-tmp <- ddply(imc, .(Region_class), summarise, 
+tmp <- ddply(bio, .(Region_class), summarise, 
              Density = mean(density),
              Biomass = mean(biomass))
 
@@ -392,12 +452,12 @@ avg <- rbind(avg_a,avg_b)
 avg <- avg[order(avg$Region_class),]
 
 # scale up biomass to area of interest
-# area of survey (spatial extent) -> for Laperouse 2015 -> 2300 sq nmi
-avg$Total.Biomass.kg <- round(avg$Biomass.kg.sqnmi * 2300)
+# area of survey (spatial extent) -> for Hake 2013 -> 10,000 sq nmi
+avg$Total.Biomass.kg <- round(avg$Biomass.kg.sqnmi * 10000)
 avg
 
 # exports
-write.csv(avg, file = "Other data/Fishing/Biomass.csv")
+write.csv(avg, file = "Other data/Fishing/Biomass_bysets.csv")
 
 
 # standard deviation of biomass estimates

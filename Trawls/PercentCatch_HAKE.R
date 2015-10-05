@@ -1,17 +1,12 @@
-### load or install
-have <- "classInt" %in% installed.packages()[,"Package"]
-if (have == FALSE){
-  install.packages("classInt", repos = "http://cran.stat.sfu.ca/")
-}
-
 
 require(ggplot2)
 require(grid)
 require(PBSmapping)
 require(classInt)
+require(plyr)
 
-# set working directory 
-setwd('..');setwd('..')
+#move back to parent directory (cruise name)
+setwd('..'); setwd('..')
 
 # load catch data
 catch <- read.csv("Other data/Fishing/catch.csv", header=T, stringsAsFactors = FALSE)
@@ -32,7 +27,7 @@ catch$PERCENT <- catch$CATCH_WEIGHT/catch$FE_TOTAL_CATCH_WEIGHT*100
 colnames(catch)[4] <- "SET"
 
 # export summary
-catch_summ <- catch[c("SET","SPECIES_COMMON_NAME","CATCH_WEIGHT","PERCENT")]
+catch_summ <- catch[c("SET","SPECIES_COMMON_NAME","SPECIES_SCIENCE_NAME", "CATCH_WEIGHT","PERCENT")]
 write.csv(catch_summ, file = "Other data/Fishing/catch_summary.csv")
 
 ## total catch data for all sets combined
@@ -158,11 +153,11 @@ ggplot(data = main.catch) +
 # Georeference catch data 
 
 # merge catch data with xy data from log
-sdlog <- log[log$Region_class == " SD",]
-sdlog$SET <- grep( "0+" , sdlog$Region_name)
+sdlog <- log[grep("SD", log$Region_name, ignore.case=TRUE),] #find SD
+sets <- unlist(strsplit(sdlog$Region_name, split = 'SD')) #clean SD
+sdlog$SET <- sub("^[0]+", "", sets[seq(2, length(sets), 2)]) #remove zeros
 catch.xy <- merge(catch, sdlog, by="SET")
 set.xy <- aggregate(. ~ SET, mean, data = catch.xy[c("Lat_s","Lon_s", "SET")])
-
 
 #check --are all the sets present in the echoview log?
 sort(unique(as.numeric(sdlog$SET)))
@@ -189,7 +184,6 @@ land <- data.frame(landC)
 
 breaks <- signif(classIntervals(main.catch.xy$CATCH_WEIGHT, 5, style = "kmeans")$brks,1)[-1]
 
-  
 mapkg <-  ggplot(data = NULL) + 
   # facets
   facet_wrap(~SPECIES_COMMON_NAME, nrow=2)+

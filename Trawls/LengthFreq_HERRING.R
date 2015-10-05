@@ -17,12 +17,13 @@ log <- read.csv("Other data/Log/Cruiselog.csv", header=T, stringsAsFactors = FAL
 
 
 
+
 #########################################################################################
 ##########################################################################################
 # dataframe pre-processing
 
 
-# remove weiht records - only interested in lengths
+# remove weight records - only interested in lengths
 morpho <- morpho[grep("LENGTH",morpho$MORPHOMETRICS_ATTRIBUTE_DESC),]
 
 # check length units
@@ -47,6 +48,7 @@ unique(morpho$SET)
 
 # subset morpho data so that it only contains log sets
 morpho <- morpho[morpho$SET %in% unique(as.numeric(sdlog$SET)),]
+
 
 
 ##########################################################################################
@@ -120,7 +122,9 @@ dev.off()
 }
 
 
-
+##----------------------------------##
+# choose length cut-off for age 1 Hake
+cutoff <- 350
 
 
 
@@ -195,40 +199,39 @@ print(mapmean)
 
 ##########################################################################################
 ##########################################################################################
-# EXPORT mean length, weight and counts of analysis region species
+# EXPORT mean length and weight by species
+
 
 # group rockfish catch together
-rock <- grep("rockfish", catch$SPECIES_DESC, ignore.case=T)
+rock <- grep("rockfish|perch", catch$SPECIES_DESC, ignore.case=T)
 r_catch <- catch[rock,c("SET", "SPECIES_DESC", "CATCH_WEIGHT")]
 wr_catch <- catch[-rock,c("SET", "SPECIES_DESC", "CATCH_WEIGHT")]
 rs_catch <- ddply(r_catch, .(SET), transform, CATCH_WEIGHT = sum(CATCH_WEIGHT))
 grp_catch <- rbind(wr_catch,rs_catch)
 
 # merge catch and morpho
-comb <- merge(morpho, grp_catch[c("SET", "SPECIES_DESC", "CATCH_WEIGHT")], by = c("SET", "SPECIES_DESC"))
+comb <- merge(morpho, grp_catch[c("SET", "SPECIES_DESC", "CATCH_WEIGHT")], 
+              by = c("SET", "SPECIES_DESC"))
 
 
 # compare morpho species to analysis species
 species_full
 unique(comb$SPECIES_DESC)
 
-## -- choose cut off for age 1 hake using histogram
 
 # reclassify morpho species to fit analysis region species
 comb$SPECIES_DESC[comb$SPECIES_DESC == "PACIFIC HAKE" & 
-                    comb$SPECIMEN_MORPHOMETRICS_VALUE > 350  ] <- "Hake"
+                    comb$SPECIMEN_MORPHOMETRICS_VALUE > cutoff  ] <- "Hake"
 comb$SPECIES_DESC[comb$SPECIES_DESC == "PACIFIC HAKE" & 
-                    comb$SPECIMEN_MORPHOMETRICS_VALUE < 350  ] <- "Age-1 Hake"
+                    comb$SPECIMEN_MORPHOMETRICS_VALUE < cutoff  ] <- "Age-1 Hake"
 comb$SPECIES_DESC[grep("herring", comb$SPECIES_DESC, ignore.case=T)] <- "Herring"
-comb$SPECIES_DESC[grep("rockfish", comb$SPECIES_DESC, ignore.case=T)] <- "Rockfish"
+comb$SPECIES_DESC[grep("rockfish|perch", comb$SPECIES_DESC, ignore.case=T)] <- "Rockfish"
 comb$SPECIES_DESC[grep("sardine", comb$SPECIES_DESC, ignore.case=T)] <- "Sardine"
 comb$SPECIES_DESC[grep("myctophid", comb$SPECIES_DESC, ignore.case=T)] <- "Myctophids"
-comb$SPECIES_DESC[grep("cps", comb$SPECIES_DESC, ignore.case=T)] <- "CPS"
+comb$SPECIES_DESC[grep("cps|sardine", comb$SPECIES_DESC, ignore.case=T)] <- "CPS"
 comb$SPECIES_DESC[grep("mackerel", comb$SPECIES_DESC, ignore.case=T)] <- "Mackerel"
 comb$SPECIES_DESC[grep("pollock", comb$SPECIES_DESC, ignore.case=T)] <- "Pollock"
 comb$SPECIES_DESC[grep("eulachon", comb$SPECIES_DESC, ignore.case=T)] <- "Eulachon"
-
-
 
 # check species
 table(comb$SPECIES_DESC)
@@ -248,8 +251,30 @@ morph_sum
 write.csv(morph_sum, file = "Other data/Fishing/morpho_summary.csv")
 
 
-#----------------------------------------------------------------#
 
+##########################################################################################
+##########################################################################################
+# EXPORT mean length, weight and counts by species by set
+
+
+# partition hake and age1 hake CATCH_WEIGHT based on individual weights
+comb$phake <- 1
+for (h in unique(comb$SET)){
+  a1 <- comb$WEIGHT[comb$SPECIES_DESC == "Age-1 Hake" & comb$SET == h]
+  ad <- comb$WEIGHT[comb$SPECIES_DESC == "Hake" & comb$SET == h]
+  ma1 <- mean(a1) * length(a1)
+  ma1 <- ifelse(is.na(ma1),0,ma1)
+  mad <- mean(ad) * length(ad)
+  mad <- ifelse(is.na(mad),0,mad)
+  pa1 <-  ma1/(ma1+mad)
+  pad <- 1 - pa1
+  comb$phake[comb$SPECIES_DESC == "Age-1 Hake" & comb$SET == h] <- pa1
+  comb$phake[comb$SPECIES_DESC == "Hake" & comb$SET == h] <- pad
+}
+
+
+# calculate new total catch weights for hake and age1 hake in the same tows
+comb$CATCH_WEIGHT <- comb$CATCH_WEIGHT * comb$phake
 
 # calc mean weights (in kg) for each species and each set
 morph_count <- ddply(comb, .(SET, SPECIES_DESC), summarise,

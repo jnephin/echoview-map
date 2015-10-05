@@ -5,14 +5,14 @@ require(PBSmapping)
 require(classInt)
 require(plyr)
 
-#move back to parent directory (cruise name)
+# move back to parent directory (cruise name)
 setwd('..'); setwd('..')
 
 # load catch data
 catch <- read.csv("Other data/Fishing/catch.csv", header=T, stringsAsFactors = FALSE)
 
 # load cruise log
-log <- read.csv("Other data/Log/Cruiselog.csv", header=T, stringsAsFactors = FALSE)
+log <- read.csv("Other data/Log/Cruiselog.csv", header=T, stringsAsFactors = FALSE, row.names=1)
 log <- log[!(log$Lat_s == 999),]
 
 
@@ -22,7 +22,7 @@ log <- log[!(log$Lat_s == 999),]
 
 catch$CATCH_WEIGHT[is.na(catch$CATCH_WEIGHT)]  <- 0
 catch <- ddply(catch, .(SET), transform, TOTAL_CATCH = sum(CATCH_WEIGHT))
-catch$PERCENT <- round(catch$CATCH_WEIGHT/catch$TOTAL_CATCH*100)
+catch$PERCENT <- catch$CATCH_WEIGHT/catch$TOTAL_CATCH*100
 
 # export summary
 catch_summ <- catch[c("SET","SPECIES_DESC","CATCH_WEIGHT","PERCENT")]
@@ -48,7 +48,7 @@ pal <- colorRampPalette(cols[1:leg],space = c("rgb"),interpolate = c("spline"))(
 # plot percentage of total catch for the survey
 
 # percent catch
-total.catch$percent <- round(total.catch$CATCH_WEIGHT/sum(total.catch$CATCH_WEIGHT)*100,5)
+total.catch$percent <- total.catch$CATCH_WEIGHT/sum(total.catch$CATCH_WEIGHT)*100
 
 # top species 
 top.catch <- tail(total.catch[order(total.catch$percent),],top)  
@@ -98,7 +98,6 @@ plototal
 pdf("Other data/Figures/TotalCatch_Percent.pdf", width = 6, height = 3.5)
 plototal
 dev.off()
-
 
 
 
@@ -226,6 +225,7 @@ dev.off()
 
 ##########################################################################
 # Map Percent Weight (%)
+
 mapper <-  ggplot(data = NULL) + 
   # facets
   facet_wrap(~SPECIES_DESC, nrow=2)+
