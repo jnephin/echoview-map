@@ -54,11 +54,12 @@ ui = fluidPage(
                           selectInput("species", label = NULL,
                                       choices = species.names,  multiple = TRUE, 
                                       selected = species.names))),
-                 
                  sliderInput("ylims", label = "Latitude",
-                             min = 30, max = 65, value = c(47, 56), step=0.1),
+                             min = 30, max = 65, 
+                             value = c(y1, y2), step=0.1),
                  sliderInput("xlims", label = "Longitude",
-                             min = -145, max = -105, value = c(-136, -122), step=0.1),
+                             min = -145, max = -105, 
+                             value = c(x1,x2), step=0.1),
                  fluidRow(
                    column(6,
                           selectInput("dataset", 
@@ -81,10 +82,10 @@ ui = fluidPage(
                  fluidRow(
                    column(4,
                           sliderInput("pointsize", label = "Label", 
-                                      min = 0, max = 5, value = 3, step = 1, ticks = FALSE)),
+                                      min = 0, max = 6, value = 3, step = 1, ticks = FALSE)),
                    column(4,
                           sliderInput("linesize", label = "Line", 
-                                      min = 0, max = 2, value = 1, step = .5, ticks = FALSE)),
+                                      min = 0, max = 3, value = 1, step = .5, ticks = FALSE)),
                    column(4,
                           sliderInput("maxsize", label = "Area", 
                                       min = 5, max = 20, value = 10, step = 1, ticks = FALSE))),

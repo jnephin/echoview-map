@@ -31,7 +31,7 @@ coeff <- read.csv("EchoviewR/Trawls/TS_coefficients.csv", header=T, stringsAsFac
 
 
 #### Choose target strength - length regression constants (a or b estimtes)
-con <- "b"
+con <- "a"
 
 
 ##########################################################################################
@@ -70,7 +70,10 @@ ggplot(data = int_cells, aes(x = Lon_S, y = Lat_S))+
   theme_bw()
 
 # change file name into transect
-int_cells$Transect <- substr(int_cells$EV_filename, 63, 67)
+tempf <- unlist(strsplit(int_cells$EV_filename, "[.]EV"))
+tempt <- unlist(strsplit(tempf, "/"))
+steps <- length(tempt)/length(tempf)
+int_cells$Transect <- tempt[(seq(steps,to=length(tempt),by=steps))]
 int_cells <- int_cells[,c( "Date", "Time", "Interval","Lat_S","Lon_S", "NASC","Transect")]
 
 
@@ -90,7 +93,10 @@ ggplot(data = int_regions, aes(x = Lon_S, y = Lat_S, colour = Region_class))+
   theme_bw()
 
 # change file name into transect
-int_regions$Transect <- substr(int_regions$EV_filename, 63, 67)
+tempf <- unlist(strsplit(int_regions$EV_filename, "[.]EV"))
+tempt <- unlist(strsplit(tempf, "/"))
+steps <- length(tempt)/length(tempf)
+int_regions$Transect <- tempt[(seq(steps,to=length(tempt),by=steps))]
 int_regions <- int_regions[,c( "Date", "Time", "Interval","Lat_S","Lon_S", "Region_class", "Region_ID", "Region_name","NASC", "Transect")]
 
 # remove leading space
@@ -115,7 +121,7 @@ mixed <- c("Herring-Rockfish mix", "Hake mix")
 
 # mixed regions from log
 matched <- log[log$Region_class %in% mixed,c("Region_ID","Region_name","Region_class","File")]
-matched$File <- substring(matched$File, 1,5)
+matched$File <- strsplit(matched$File, "[.]csv")
 colnames(matched)[4] <- "Transect"
 
 # add matching sets
@@ -201,7 +207,7 @@ int_regions <- rbind(int_regions, mix_data[names(int_regions)])
 analysis <- log[log$Region_type == " Analysis",]
 
 # change file to transect
-analysis$File <- strsplit(analysis$File, ".csv")
+analysis$File <- strsplit(analysis$File, "[.]csv")
 colnames(analysis)[16] <- "Transect"
 
 

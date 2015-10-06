@@ -9,7 +9,7 @@ source("1_Paths.R")
 
 # INTEGRATE 
 # Make TRUE the method(s) you which to integrate by
-ByCell <- FALSE
+ByCell <- TRUE
 ByRegion <- FALSE
 ByCellByRegion <- TRUE
 

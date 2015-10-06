@@ -135,21 +135,41 @@ time$Hours <- paste(time$Hours, ":00", sep="")
 
 
 
+
+#################################
+#-------- TRANSECTS ---------#
+
+# integration by cell data location
+cellfile <- "Acoustics/Echoview/Exports/Sv raw pings T2/IntegratedByCells.csv"
+
+#Load the integration file. If it doesn't exist, give error
+if (file.exists(cellfile)) {
+  int_cells <- read.csv(cellfile, header=T, row.names=1, stringsAsFactors = FALSE)
+} else {
+  stop(file.path(getwd(),cellfile), " not found")
+}
+
+int_cells <- int_cells[!int_cells$Lat_S == 999,]
+
+
+  
 #################################
 #-------- CRUISE LOG ---------#
 
 cruiselog <- read.csv("Other data/Log/CruiseLog.csv", header=T, stringsAsFactors = FALSE)
 Log <- cruiselog[cruiselog$Region_type == " Marker",]
-              
+
+
 #transects 
-start <- Log[grep("ST", Log$Region_name, ignore.case=TRUE), c("Region_class", "Date_s","Time_s","Lat_s","Lon_s","Region_name")]
-end <- Log[grep("ET", Log$Region_name, ignore.case=TRUE), c("Region_class", "Date_s","Time_s","Lat_s","Lon_s","Region_name")]
+start <- Log[grep(" ST", Log$Region_name, ignore.case=TRUE), c("Region_class", "Date_s","Time_s","Lat_s","Lon_s","Region_name")]
+end <- Log[grep(" ET", Log$Region_name, ignore.case=TRUE), c("Region_class", "Date_s","Time_s","Lat_s","Lon_s","Region_name")]
 
 if (nrow(start) == nrow(end)){
-transects <- data.frame(start=start, end=end)
+  transects <- data.frame(start=start, end=end)
 } else {
   stop("Different number of start (ST = ", nrow(start), ") and end (ET = ", nrow(end), ") transects in 'Region_name' column of CruiseLog.csv")
 }
+
 
 #trawling
 trawls <- Log[grep("SD", Log$Region_name, ignore.case=TRUE), c("Region_class", "Date_s","Time_s","Lat_s","Lon_s","Region_name")]
@@ -286,13 +306,13 @@ if(hour == TRUE)
 
 #transects
 if(shiplog == TRUE) {
-  base <- base + geom_segment(data = transects, aes_string(x = "start.Lon_s", 
-                              y = "start.Lat_s", xend = "end.Lon_s", yend = "end.Lat_s"), 
+  base <- base + geom_path(data = int_cells, aes_string(x = "Lon_S", y = "Lat_S", group = "EV_filename"), 
                               size = linesize) +
                 geom_text(data = transects, aes_string(x = "start.Lon_s", 
                           y = "start.Lat_s", label="start.Region_name"), size = pointsize, 
-                          hjust = -.2, fontface = 2)
+                          vjust = 1.2, fontface = 2)
 }
+
 
 #regions
 if(analysis == "Regions") {
@@ -317,7 +337,7 @@ if(trawl == TRUE)  {
                             pch=43, colour = "#BC00D9", size = pointsize) +
                  geom_text(data = trawls, aes_string(x = "Lon_s", y = "Lat_s", 
                             label="Region_name"), colour = "#BC00D9", 
-                            size = pointsize, hjust = -.1, fontface = 2)
+                            size = pointsize, vjust = -.2, fontface = 2)
 }
 
 #ctds
@@ -334,5 +354,26 @@ return(base)
 
 
 
+##########################################################
+# x and y lims for initial plot
+
+# integration by cell data location
+cellfile <- "Acoustics/Echoview/Exports/Sv raw pings T2/IntegratedByCells.csv"
+
+#Load the integration file. If it doesn't exist, give error
+if (file.exists(cellfile)) {
+  int_cells <- read.csv(cellfile, header=T, row.names=1, stringsAsFactors = FALSE)
+} else {
+  stop(file.path(getwd(),cellfile), " not found")
+}
+
+int_cells <- int_cells[!int_cells$Lat_S == 999,]
+
+
+y1 <- min(int_cells$Lat_S)-.5
+y2 <- max(int_cells$Lat_S)+.5
+
+x1 <- min(int_cells$Lon_S)-.5
+x2 <- max(int_cells$Lon_S)+.5
 
 
