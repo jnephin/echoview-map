@@ -38,9 +38,8 @@ EVfile <- EVApp$OpenFile(EVfileName)
 #set EvVariable object
 evVarObj <- EVfile[["Variables"]]
 
-#get the first variable in EvVariableAcoustic 
-evVarObj$Item(1)$FullName()
-EvVar <- evVarObj$Item(1)$AsVariableAcoustic()
+#get 'Sv raw pings T1' in EvVariableAcoustic 
+EvVar <- evVarObj$FindByName("Sv raw pings T1")$AsVariableAcoustic()
 
 #export log book
 logName <- strsplit(i, split = '*.EV')[[1]]

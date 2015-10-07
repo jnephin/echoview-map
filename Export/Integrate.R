@@ -95,6 +95,11 @@ EvName <- strsplit(i, split = '*.EV')[[1]]
 for (j in variables) {
         var <- VarObj$FindByName(j)$AsVariableAcoustic()
         
+# set exclude above and below        
+      AnaObj <- var[["Properties"]][["Analysis"]] 
+      AnaObj[["ExcludeAboveLine"]] <- "14 m from surface"
+      AnaObj[["ExcludeBelowLine"]] <- "1.0 m bottom offset"
+        
 # export by cells
     if (ByCell == TRUE){
         exportFileName <- file.path(getwd(), EXPdir, j, paste(EvName, "_IntegratedByCells", ".csv", sep=""))
@@ -112,6 +117,9 @@ for (j in variables) {
     } 
 }
 
+
+# save EV file
+EVfile$Save()
 
 #close EV file
 EVApp$CloseFile(EVfile)
