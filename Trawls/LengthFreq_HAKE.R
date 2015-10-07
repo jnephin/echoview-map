@@ -17,29 +17,40 @@ colnames(catch)[4] <- "SET"
 # load echoview log
 log <- read.csv("Other data/Log/Cruiselog.csv", header=T, stringsAsFactors = FALSE, row.names=1)
 
+# load length weight regression coefficients
+coeff <- read.csv("EchoviewR/Trawls/LW_coefficients.csv", header=T, stringsAsFactors = FALSE)
+
+
 
 ##########################################################################################
 ##########################################################################################
-# dataframe pre-processing
+# data pre-processing
 
 # get weight records from morpho
-weights <- morpho[grep("WEIGHT",morpho$MORPHOMETRICS_ATTRIBUTE_DESC),]
-
+weights <- morpho[grep("WEIGHT",morpho$MORPHOMETRICS_ATTRIBUTE_DESC),c(8,11,12)]
+colnames(weights) <- c("SPECIMEN_ID", "WEIGHT", "WEIGHT_UNITS")
+  
 # check length units
-table(weights$MORPHOMETRICS_UNIT_DESC)
-
+table(weights$WEIGHT_UNITS)
 
 # get length records from morpho
-morpho <- morpho[grep("LENGTH",morpho$MORPHOMETRICS_ATTRIBUTE_DESC),]
+table(morpho$MORPHOMETRICS_ATTRIBUTE_DESC)
+lengths <- morpho[grep("LENGTH",morpho$MORPHOMETRICS_ATTRIBUTE_DESC),]
 
 # check length units
-table(morpho$MORPHOMETRICS_UNIT_DESC)
+table(lengths$MORPHOMETRICS_UNIT_DESC)
+
 
 # convert all lengths to mm
-morpho$SPECIMEN_MORPHOMETRICS_VALUE <- ifelse(morpho$MORPHOMETRICS_UNIT_DESC == "CENTIMETRE", 
-                                              morpho$SPECIMEN_MORPHOMETRICS_VALUE*10,
-                                              morpho$SPECIMEN_MORPHOMETRICS_VALUE)
+lengths$SPECIMEN_MORPHOMETRICS_VALUE <- ifelse(lengths$MORPHOMETRICS_UNIT_DESC == "CENTIMETRE", 
+                                               lengths$SPECIMEN_MORPHOMETRICS_VALUE*10,
+                                               lengths$SPECIMEN_MORPHOMETRICS_VALUE)
 
+# data subset with only lengths -> no weights taken
+length_only <- lengths[!(lengths$SPECIMEN_ID %in% weights$SPECIMEN_ID),]
+
+# merge lengths and weight data together by specimen
+morpho <- merge(lengths, weights, by = "SPECIMEN_ID")
 
 
 # get xy data from log
@@ -52,9 +63,32 @@ set.xy <- sdlog[c("SET","Lat_s","Lon_s")]
 sort(unique(as.numeric(sdlog$SET)))
 unique(morpho$SET)
 
-# subset length and weight data so that it only contains log sets
+# subset morpho and length_only data so that it only contains log sets
 morpho <- morpho[morpho$SET %in% unique(as.numeric(sdlog$SET)),]
-weights <- weights[weights$SET %in% unique(as.numeric(sdlog$SET)),]
+length_only <- length_only[length_only$SET %in% unique(as.numeric(sdlog$SET)),]
+
+
+## ADD SPECIES WITH NO WEIGHT MEASUREMENTS
+
+# which species only have length not weight measurements
+table(morpho$SPECIES_COMMON_NAME)
+table(length_only$SPECIES_COMMON_NAME)
+no_weights <- unique(length_only$SPECIES_COMMON_NAME)[!(unique(length_only$SPECIES_COMMON_NAME) %in%  unique(morpho$SPECIES_COMMON_NAME))]
+
+# get lengths for no_weights species
+wec <- length_only[length_only$SPECIES_COMMON_NAME %in% no_weights,]
+
+# convert lengths to total length 
+wec <- merge(wec, coeff, by = "SPECIES_COMMON_NAME")
+wec$SPECIMEN_MORPHOMETRICS_VALUE <- wec$SPECIMEN_MORPHOMETRICS_VALUE * wec$Total_length
+wec$MORPHOMETRICS_ATTRIBUTE_DESC <- "TOTAL LENGTH"
+
+# calculate weights (in grams) for length_only species
+wec$WEIGHT <- wec$a * (wec$SPECIMEN_MORPHOMETRICS_VALUE/10)^wec$b
+wec$WEIGHT_UNITS <- "GRAM"
+
+# bind morpho and wec together
+morpho <- rbind(morpho, wec[names(morpho)])
 
 
 
@@ -83,8 +117,8 @@ check.lengths
 
 # species from echoview analysis regions only
 species_full <- unique(log$Region_class[log$Region_type == " Analysis"])
-species <- gsub( "^\\s+|\\s+$", "" , species_full) # removes leading or trailing whitespace from echoview log
-species <- unlist(strsplit(species, " "))
+species_full <- gsub( "^\\s+|\\s+$", "" , species_full) # removes leading or trailing whitespace from echoview log
+species <- unlist(strsplit(species_full, " "))
 species <- unlist(strsplit(species, "-"))
 
 # get lengths for analysis species
@@ -216,24 +250,8 @@ wr_catch <- catch[-rock,c("SET", "SPECIES_COMMON_NAME", "CATCH_WEIGHT")]
 rs_catch <- ddply(r_catch, .(SET), transform, CATCH_WEIGHT = sum(CATCH_WEIGHT))
 grp_catch <- rbind(wr_catch,rs_catch)
 
-# prep weight data for merge with length data
-weights <- weights[c("SET", "SPECIES_COMMON_NAME", "CATCH_ID", "SAMPLE_ID", 
-                     "SPECIMEN_ID", "SPECIMEN_MORPHOMETRICS_VALUE", "MORPHOMETRICS_UNIT_DESC")]
-colnames(weights)[6:7] <- c("WEIGHT", "WEIGHT_UNITS")
-
-# merge weight and length data
-morphs <- merge(morpho, weights, 
-                by = c("SET", "SPECIES_COMMON_NAME", "CATCH_ID", "SAMPLE_ID", "SPECIMEN_ID"), 
-                all.x=T)
-
-# compare number of length samples to weight samples
-sam <- morphs[!is.na(morphs$WEIGHT),]
-table(morpho$SPECIES_COMMON_NAME)
-table(sam$SPECIES_COMMON_NAME)
-
-
-# merge catch and morphs
-comb <- merge(morphs, grp_catch[c("SET", "SPECIES_COMMON_NAME", "CATCH_WEIGHT")], 
+# merge catch and morpho
+comb <- merge(morpho, grp_catch[c("SET", "SPECIES_COMMON_NAME", "CATCH_WEIGHT")], 
               by = c("SET", "SPECIES_COMMON_NAME"))
 
 
@@ -250,7 +268,7 @@ comb$SPECIES_COMMON_NAME[comb$SPECIES_COMMON_NAME == "PACIFIC HAKE" &
 comb$SPECIES_COMMON_NAME[grep("herring", comb$SPECIES_COMMON_NAME, ignore.case=T)] <- "Herring"
 comb$SPECIES_COMMON_NAME[grep("rockfish|perch", comb$SPECIES_COMMON_NAME, ignore.case=T)] <- "Rockfish"
 comb$SPECIES_COMMON_NAME[grep("sardine", comb$SPECIES_COMMON_NAME, ignore.case=T)] <- "Sardine"
-comb$SPECIES_COMMON_NAME[grep("myctophid", comb$SPECIES_COMMON_NAME, ignore.case=T)] <- "Myctophids"
+comb$SPECIES_COMMON_NAME[grep("myctophid|lampfish", comb$SPECIES_COMMON_NAME, ignore.case=T)] <- "Myctophids"
 comb$SPECIES_COMMON_NAME[grep("cps|sardine", comb$SPECIES_COMMON_NAME, ignore.case=T)] <- "CPS"
 comb$SPECIES_COMMON_NAME[grep("mackerel", comb$SPECIES_COMMON_NAME, ignore.case=T)] <- "Mackerel"
 comb$SPECIES_COMMON_NAME[grep("pollock", comb$SPECIES_COMMON_NAME, ignore.case=T)] <- "Pollock"
@@ -259,15 +277,14 @@ comb$SPECIES_COMMON_NAME[grep("eulachon", comb$SPECIES_COMMON_NAME, ignore.case=
 # check species
 table(comb$SPECIES_COMMON_NAME)
 
-# check weight units - divide by 1000 in morph_sum if grams
+# check weight units - should be all in grams
 table(comb$WEIGHT_UNITS)
 
 # calc mean length and weight for each species
 morph_sum <- ddply(comb, .(SPECIES_COMMON_NAME), summarise, 
-                      mean.length.mm = mean(SPECIMEN_MORPHOMETRICS_VALUE,na.rm = T),
-                      weigted.mean.length.mm = sum(SPECIMEN_MORPHOMETRICS_VALUE * WEIGHT, na.rm = T)/
-                     sum(WEIGHT,na.rm = T),
-                      mean.weight.kg = mean(WEIGHT, na.rm = T)/1000,
+                      mean.length.mm = mean(SPECIMEN_MORPHOMETRICS_VALUE),
+                      weigted.mean.length.mm = sum(SPECIMEN_MORPHOMETRICS_VALUE * WEIGHT)/sum(WEIGHT),
+                      mean.weight.kg = mean(WEIGHT)/1000,
                       n = length(WEIGHT))
 morph_sum
 
@@ -303,7 +320,7 @@ comb$CATCH_WEIGHT <- comb$CATCH_WEIGHT * comb$phake
 # calc mean weights (in kg) for each species and each set
 morph_count <- ddply(comb, .(SET, SPECIES_COMMON_NAME), summarise,
                      mean.length.mm = mean(SPECIMEN_MORPHOMETRICS_VALUE),
-                     mean.weight.kg = mean(WEIGHT, na.rm = T)/1000,
+                     mean.weight.kg = mean(WEIGHT)/1000,
                      total.weight.kg = min(CATCH_WEIGHT))
 
 #merge catch and mean length data

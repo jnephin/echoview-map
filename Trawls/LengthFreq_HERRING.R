@@ -227,7 +227,7 @@ comb$SPECIES_DESC[comb$SPECIES_DESC == "PACIFIC HAKE" &
 comb$SPECIES_DESC[grep("herring", comb$SPECIES_DESC, ignore.case=T)] <- "Herring"
 comb$SPECIES_DESC[grep("rockfish|perch", comb$SPECIES_DESC, ignore.case=T)] <- "Rockfish"
 comb$SPECIES_DESC[grep("sardine", comb$SPECIES_DESC, ignore.case=T)] <- "Sardine"
-comb$SPECIES_DESC[grep("myctophid", comb$SPECIES_DESC, ignore.case=T)] <- "Myctophids"
+comb$SPECIES_DESC[grep("myctophid|lampfish", comb$SPECIES_DESC, ignore.case=T)] <- "Myctophids"
 comb$SPECIES_DESC[grep("cps|sardine", comb$SPECIES_DESC, ignore.case=T)] <- "CPS"
 comb$SPECIES_DESC[grep("mackerel", comb$SPECIES_DESC, ignore.case=T)] <- "Mackerel"
 comb$SPECIES_DESC[grep("pollock", comb$SPECIES_DESC, ignore.case=T)] <- "Pollock"
