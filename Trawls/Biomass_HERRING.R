@@ -44,6 +44,7 @@ reg <- unique(log$Region_class[log$Region_type == " Analysis"])
 reg
 
 
+
 ##########################################################################################
 ##########################################################################################
 # prep NASC
@@ -131,10 +132,10 @@ matched$sets <- c(14,29,29,29,29)
 mat <- morph[morph$SET %in% matched$sets,]
 
 # merge coeff data with mat
-mat <- merge(mat, coeff[coeff$choice == con,1:3], by.x = "SPECIES_DESC", by.y = "Region_class")
+mat <- merge(mat, coeff[coeff$choice == con,c(1,2,3,7)], by.x = "SPECIES_DESC", by.y = "Region_class")
 
 # calculate target strength to partition nasc
-mat$TS <- mat$m * log10(mat$mean.length.mm/10) + mat$b
+mat$TS <- mat$m * log10((mat$mean.length.mm*mat$convert)/10) + mat$b
 
 # calculate backscatter cross-section to partition nasc
 mat$sigma_bs <- 10 ^(mat$TS/10)
@@ -340,17 +341,18 @@ summ <- summ[summ$SPECIES_DESC %in% regions$Region_class,]
 im <- merge(int_regions, summ, by.x = c("Region_class"), by.y = c("SPECIES_DESC"))
 
 ## check - the same length unless region aren't in fishing data -> e.g. CPS
+table(int_regions$Region_class)
 dim(int_regions)
 dim(im)
 
 # merge coeff data with him
-imc <- merge(im, coeff[coeff$choice == con,1:3], by = "Region_class")
+imc <- merge(im, coeff[coeff$choice == con,c(1,2,3,7)], by = "Region_class")
 
 
 # biomass calculations
 
 # Target strength by mean length (in cm)
-imc$TS <- imc$m * log10(imc$weigted.mean.length.mm/10) + imc$b
+imc$TS <- imc$m * log10((imc$weigted.mean.length.mm*imc$convert)/10) + imc$b
 
 # Backscattering cross-section 
 imc$sigma_bs <- 10 ^(imc$TS/10)
@@ -360,7 +362,6 @@ imc$density <- imc$NASC/ (4*pi*imc$sigma_bs)
 
 # Biomass (kg/nmi^2)
 imc$biomass <- imc$density * (imc$mean.weight.kg)
-
 
 
 

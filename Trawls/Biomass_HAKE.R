@@ -34,7 +34,7 @@ coeff <- read.csv("EchoviewR/Trawls/TS_coefficients.csv", header=T, stringsAsFac
 
 
 #### Choose target strength - length regression constants (a or b estimtes)
-con <- "b"
+con <- "a"
 
 
 ##########################################################################################
@@ -132,11 +132,13 @@ matched$sets <- c(14,29,29,29,29)
 # mean weight, length and count data for mixed sets
 mat <- morph[morph$SET %in% matched$sets,]
 
+
 # merge coeff data with mat
-mat <- merge(mat, coeff[coeff$choice == con,1:3], by.x = "SPECIES_COMMON_NAME", by.y = "Region_class")
+mat <- merge(mat, coeff[coeff$choice == con,c(1,2,3,7)], by.x = "SPECIES_COMMON_NAME", by.y = "Region_class")
 
 # calculate target strength to partition nasc
-mat$TS <- mat$m * log10(mat$mean.length.mm/10) + mat$b
+mat$TS <- mat$m * log10((mat$mean.length.mm*mat$convert)/10) + mat$b
+
 
 # calculate backscatter cross-section to partition nasc
 mat$sigma_bs <- 10 ^(mat$TS/10)
@@ -351,18 +353,20 @@ morph_hake <- morph[grep("hake",morph$SPECIES_COMMON_NAME, ignore.case=T),]
 # merge hake nasc and morpho data
 him <- merge(int_hake, morph_hake, by.x = c("Region_class","SET"), by.y = c("SPECIES_COMMON_NAME", "SET"))
 
+
 ## check - should be same length
 dim(int_hake)
 dim(him)
 
+
 # merge coeff data with him
-himc <- merge(him, coeff[coeff$choice == con,1:3], by = "Region_class")
+himc <- merge(him, coeff[coeff$choice == con,c(1,2,3,7)], by = "Region_class")
 
 
 # biomass calculations
 
   # Target strength by mean length (in cm)
-himc$TS <- himc$m * log10(himc$mean.length.mm/10) + himc$b
+himc$TS <- himc$m * log10((himc$mean.length.mm*himc$convert)/10) + himc$b
   
   # Backscattering cross-section 
 himc$sigma_bs <- 10 ^(himc$TS/10)
@@ -394,13 +398,13 @@ dim(int_other)
 dim(oim)
 
 # merge coeff data with him
-oimc <- merge(oim, coeff[coeff$choice == con,1:3], by = "Region_class")
+oimc <- merge(oim, coeff[coeff$choice == con,c(1,2,3,7)], by = "Region_class")
 
 
 # biomass calculations
 
 # Target strength by mean length (in cm)
-oimc$TS <- oimc$m * log10(oimc$weigted.mean.length.mm/10) + oimc$b
+oimc$TS <- oimc$m * log10((oimc$weigted.mean.length.mm*oimc$convert)/10) + oimc$b
 
 # Backscattering cross-section 
 oimc$sigma_bs <- 10 ^(oimc$TS/10)
@@ -457,7 +461,7 @@ avg$Total.Biomass.kg <- round(avg$Biomass.kg.sqnmi * 10000)
 avg
 
 # exports
-write.csv(avg, file = "Other data/Fishing/Biomass_bysets.csv")
+write.csv(avg, file = "Other data/Fishing/Biomass.csv")
 
 
 # standard deviation of biomass estimates

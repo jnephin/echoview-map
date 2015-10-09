@@ -18,8 +18,10 @@ colnames(catch)[4] <- "SET"
 log <- read.csv("Other data/Log/Cruiselog.csv", header=T, stringsAsFactors = FALSE, row.names=1)
 
 # load length weight regression coefficients
-coeff <- read.csv("EchoviewR/Trawls/LW_coefficients.csv", header=T, stringsAsFactors = FALSE)
+coeff_LW <- read.csv("EchoviewR/Trawls/LW_coefficients.csv", header=T, stringsAsFactors = FALSE)
 
+# load target strength coefficients
+coeff_TS <- read.csv("EchoviewR/Trawls/TS_coefficients.csv", header=T, stringsAsFactors = FALSE)
 
 
 ##########################################################################################
@@ -30,7 +32,7 @@ coeff <- read.csv("EchoviewR/Trawls/LW_coefficients.csv", header=T, stringsAsFac
 weights <- morpho[grep("WEIGHT",morpho$MORPHOMETRICS_ATTRIBUTE_DESC),c(8,11,12)]
 colnames(weights) <- c("SPECIMEN_ID", "WEIGHT", "WEIGHT_UNITS")
   
-# check length units
+# check weight units
 table(weights$WEIGHT_UNITS)
 
 # get length records from morpho
@@ -49,7 +51,7 @@ lengths$SPECIMEN_MORPHOMETRICS_VALUE <- ifelse(lengths$MORPHOMETRICS_UNIT_DESC =
 # data subset with only lengths -> no weights taken
 length_only <- lengths[!(lengths$SPECIMEN_ID %in% weights$SPECIMEN_ID),]
 
-# merge lengths and weight data together by specimen
+# merge lengths and weight data together by specimen, subset only data which has both weights and lengths
 morpho <- merge(lengths, weights, by = "SPECIMEN_ID")
 
 
@@ -74,21 +76,30 @@ length_only <- length_only[length_only$SET %in% unique(as.numeric(sdlog$SET)),]
 table(morpho$SPECIES_COMMON_NAME)
 table(length_only$SPECIES_COMMON_NAME)
 no_weights <- unique(length_only$SPECIES_COMMON_NAME)[!(unique(length_only$SPECIES_COMMON_NAME) %in%  unique(morpho$SPECIES_COMMON_NAME))]
+no_weights
 
 # get lengths for no_weights species
 wec <- length_only[length_only$SPECIES_COMMON_NAME %in% no_weights,]
 
-# convert lengths to total length 
-wec <- merge(wec, coeff, by = "SPECIES_COMMON_NAME")
-wec$SPECIMEN_MORPHOMETRICS_VALUE <- wec$SPECIMEN_MORPHOMETRICS_VALUE * wec$Total_length
-wec$MORPHOMETRICS_ATTRIBUTE_DESC <- "TOTAL LENGTH"
+# merge with length - weight coefficients
+wec <- merge(wec, coeff_LW, by = "SPECIES_COMMON_NAME")
+
 
 # calculate weights (in grams) for length_only species
-wec$WEIGHT <- wec$a * (wec$SPECIMEN_MORPHOMETRICS_VALUE/10)^wec$b
+wec$WEIGHT <- wec$a * ((wec$SPECIMEN_MORPHOMETRICS_VALUE*wec$Total_length)/10)^wec$b
 wec$WEIGHT_UNITS <- "GRAM"
 
 # bind morpho and wec together
 morpho <- rbind(morpho, wec[names(morpho)])
+
+
+## CHECK
+
+# do species lengths in morpho match species length in coeff for regressions?
+coeff_TS[!duplicated(coeff_TS$Region_class),c("Region_class", "MORPHOMETRICS_ATTRIBUTE_DESC")]
+ddply(morpho, .(SPECIES_COMMON_NAME), summarise, 
+      MORPHOMETRICS_ATTRIBUTE_DESC = unique(MORPHOMETRICS_ATTRIBUTE_DESC))
+
 
 
 

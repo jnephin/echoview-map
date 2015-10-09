@@ -15,7 +15,8 @@ catch <- read.csv("Other data/Fishing/catch.csv", header=T, stringsAsFactors = F
 # load echoview log
 log <- read.csv("Other data/Log/Cruiselog.csv", header=T, stringsAsFactors = FALSE, row.names=1)
 
-
+# load target strength coefficients
+coeff_TS <- read.csv("EchoviewR/Trawls/TS_coefficients.csv", header=T, stringsAsFactors = FALSE)
 
 
 #########################################################################################
@@ -48,6 +49,13 @@ unique(morpho$SET)
 
 # subset morpho data so that it only contains log sets
 morpho <- morpho[morpho$SET %in% unique(as.numeric(sdlog$SET)),]
+
+
+## CHECK
+
+# do species lengths in morpho match species length in coeff for regressions?
+coeff_TS[!duplicated(coeff_TS$Region_class),c("Region_class", "MORPHOMETRICS_ATTRIBUTE_DESC")]
+ddply(morpho, .(SPECIES_DESC), summarise, MORPHOMETRICS_ATTRIBUTE_DESC = unique(MORPHOMETRICS_ATTRIBUTE_DESC))
 
 
 
