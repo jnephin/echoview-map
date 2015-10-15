@@ -32,19 +32,16 @@ colnames(log)[1] <- "Region_ID"
 # load target strength coefficients
 coeff <- read.csv("EchoviewR/Trawls/TS_coefficients.csv", header=T, stringsAsFactors = FALSE)
 
+# load survey data
+trans <- read.csv("Other data/Fishing/transects.csv", header=T, stringsAsFactors = FALSE)
+
+
 
 #### Choose target strength - length regression constants (a or b estimtes)
-con <- "a"
+con <- "b"
 
 
-##########################################################################################
-##########################################################################################
-# species of interest
 
-# analysis regions classes
-log$Region_class <- sub( "\\s", "" , log$Region_class)
-reg <- unique(log$Region_class[log$Region_type == " Analysis"])
-reg
 
 
 ##########################################################################################
@@ -108,17 +105,50 @@ int_regions$Region_class <- sub( "\\s", "" , int_regions$Region_class)
 
 
 
+############################################################################
+############################################################################
+## MERGE SURVEY INFO
+
+## update trans Transects
+trans$Transect <- sub(".csv", "", trans$File)
+
+## merge nasc and log with replicate info
+log <- merge(log, trans, by = "File")
+int_regions <- merge(int_regions, trans, by = "Transect")
+int_cells <- merge(int_cells, trans, by = "Transect")
+
+
+# --  repeat script once for each survey or replicate combo
+log <- log[log$Survey == 1 & log$Replicate == "y", ]
+int_regions <- int_regions[int_regions$Survey == 1 & int_regions$Replicate == "y", ]
+int_cells <- int_cells[int_cells$Survey == 1 & int_cells$Replicate == "y", ]
+
+
+##########################################################################################
+##########################################################################################
+# species of interest
+
+# analysis regions classes
+log$Region_class <- sub( "\\s", "" , log$Region_class)
+reg <- unique(log$Region_class[log$Region_type == " Analysis"])
+reg
+
+# get analysis regions from log
+analysis <- log[log$Region_type == " Analysis",]
+
+
+
 ##########################################################################################
 ##########################################################################################
 # Update NASC for mixed regions based on TS and catch
 
 ## -- skip if there are no mixed regions
 
+
 ### Calculate nasc ratio
                       
 # mixed regions
-reg
-mixed <- c("Herring-Rockfish mix", "Hake mix")
+mixed <- c("Hake mix")
 
 # mixed regions from log
 matched <- log[log$Region_class %in% mixed,c("Region_ID","Region_name","Region_class","File")]
@@ -127,7 +157,9 @@ colnames(matched)[4] <- "Transect"
 
 
 # add matching sets
-matched$sets <- c(14,29,29,29,29)
+matched$sets <- sub("[A-z ]*","",matched$Region_name) # remove leading letters
+matched$sets <- sub("-.*","",matched$sets) # remove everything after dash
+matched$sets <- sub("*.A","",matched$sets) # remove everything before A
 
 # mean weight, length and count data for mixed sets
 mat <- morph[morph$SET %in% matched$sets,]
@@ -207,14 +239,6 @@ int_regions <- rbind(int_regions, mix_data[names(int_regions)])
 # Update mixed anlaysis regions in log
 
 
-# get analysis regions from log
-analysis <- log[log$Region_type == " Analysis",]
-
-# change file to transect
-analysis$File <- strsplit(analysis$File, "[.]csv")
-colnames(analysis)[16] <- "Transect"
-
-
 ## -- skip if there are no mixed regions
 
 # merge matched sets with analysis
@@ -241,7 +265,8 @@ analysis <- analysis[!analysis$Region_class %in% mixed,]
 ## add partitoned regions back into  analysis
 analysis <- rbind(analysis, mix_reg[names(analysis)])
 
-
+## check analysis regions 
+table(analysis$Region_class)
 
 
 
@@ -339,8 +364,10 @@ int_hake <- int_regions[grep("hake",int_regions$Region_class, ignore.case=T),]
 
 # add sets
 for_sets <- int_hake[!duplicated(int_hake[c("Region_ID", "Region_name", "Region_class", "Transect")]),] 
-for_sets$SET <- c(2, 2, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9)
-
+for_sets$SET <- sub("[A-z ]*","",for_sets$Region_name) # remove leading letters
+for_sets$SET <- sub("-.*","",for_sets$SET) # remove everything after dash
+for_sets$SET <- sub("*.A","",for_sets$SET) # remove everything before A
+for_sets
 
 # merge sets and int hake data
 int_hake <- merge(int_hake, 
@@ -393,7 +420,7 @@ summ_other <- summ[-(grep("hake",summ$SPECIES_COMMON_NAME, ignore.case=T)),]
 # merge non-hake nasc and morpho data
 oim <- merge(int_other, summ_other, by.x = c("Region_class"), by.y = c("SPECIES_COMMON_NAME"))
 
-## check - the same length unless region aren't in fishing data -> e.g. CPS
+## check - the same length unless region aren't in fishing data -> CPS, myctophids, etc.
 dim(int_other)
 dim(oim)
 
@@ -457,11 +484,11 @@ avg <- avg[order(avg$Region_class),]
 
 # scale up biomass to area of interest
 # area of survey (spatial extent) -> for Hake 2013 -> 10,000 sq nmi
-avg$Total.Biomass.kg <- round(avg$Biomass.kg.sqnmi * 10000)
+#avg$Total.Biomass.kg <- round(avg$Biomass.kg.sqnmi * 10000)
 avg
 
 # exports
-write.csv(avg, file = "Other data/Fishing/Biomass.csv")
+write.csv(avg, file = "Other data/Fishing/Biomass_Replicate1.csv")
 
 
 # standard deviation of biomass estimates
