@@ -7,7 +7,7 @@ require(chron)
 require(classInt)
 
 
-basePlot <- function(dataset, city, survey, day, hour, shiplog, analysis, nasc, species, ctds, trawl, project, xlims, ylims, isob, bathy, pointsize, linesize, maxsize){
+basePlot <- function(dataset, city, survey, day, hour, shiplog, analysis, species, ctds, trawl, project, xlims, ylims, isob, bathy, pointsize, linesize, maxsize){
 
 #ocean colour  
 bg <- "white"  #'#bddfeb'
@@ -161,8 +161,11 @@ Log <- cruiselog[cruiselog$Region_type == " Marker",]
 
 
 #transects 
-start <- Log[grep(" ST", Log$Region_name, ignore.case=TRUE), c("Region_class", "Date_s","Time_s","Lat_s","Lon_s","Region_name")]
-end <- Log[grep(" ET", Log$Region_name, ignore.case=TRUE), c("Region_class", "Date_s","Time_s","Lat_s","Lon_s","Region_name")]
+start <- Log[grep(" ST", Log$Region_name, ignore.case=TRUE), c("Region_class", "Date_s","Time_s","Lat_s","Lon_s","Region_name","File")]
+start <- start[order(start$Date_s, start$Time_s),]
+
+end <- Log[grep(" ET", Log$Region_name, ignore.case=TRUE), c("Region_class", "Date_s","Time_s","Lat_s","Lon_s","Region_name","File")]
+end <- end[order(end$Date_s, end$Time_s),]
 
 if (nrow(start) == nrow(end)){
   transects <- data.frame(start=start, end=end)

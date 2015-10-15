@@ -18,8 +18,11 @@ log <- log[!(log$Lat_s == 999),]
 
 
 ############################################################################
-# percent catch by tow
+# group by species by tow
+catch <- ddply(catch, .(SET, SPECIES_DESC), 
+               summarise, CATCH_WEIGHT = sum(CATCH_WEIGHT))
 
+# percent catch by tow
 catch$CATCH_WEIGHT[is.na(catch$CATCH_WEIGHT)]  <- 0
 catch <- ddply(catch, .(SET), transform, TOTAL_CATCH = sum(CATCH_WEIGHT))
 catch$PERCENT <- catch$CATCH_WEIGHT/catch$TOTAL_CATCH*100

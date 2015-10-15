@@ -20,11 +20,15 @@ log <- log[!(log$Lat_s == 999),]
 
 
 ############################################################################
+# group by species by tow
+catch <- ddply(catch, .(FE_MAJOR_LEVEL_ID, SPECIES_COMMON_NAME, SPECIES_SCIENCE_NAME, FE_TOTAL_CATCH_WEIGHT), 
+               summarise, CATCH_WEIGHT = sum(CATCH_WEIGHT))
+
 # percent catch by tow
 catch$FE_TOTAL_CATCH_WEIGHT[is.na(catch$FE_TOTAL_CATCH_WEIGHT)] <- 0
 catch$CATCH_WEIGHT[is.na(catch$CATCH_WEIGHT)] <- 0
 catch$PERCENT <- catch$CATCH_WEIGHT/catch$FE_TOTAL_CATCH_WEIGHT*100
-colnames(catch)[4] <- "SET"
+colnames(catch)[1] <- "SET"
 
 # export summary
 catch_summ <- catch[c("SET","SPECIES_COMMON_NAME","SPECIES_SCIENCE_NAME", "CATCH_WEIGHT","PERCENT")]

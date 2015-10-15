@@ -12,6 +12,7 @@ colnames(morpho)[3] <- "SET"
 
 # load catch data for lat long
 catch <- read.csv("Other data/Fishing/catch.csv", header=T, stringsAsFactors = FALSE)
+catch <- catch[!is.na(catch$CATCH_WEIGHT),]
 colnames(catch)[4] <- "SET"
 
 # load echoview log
@@ -24,13 +25,35 @@ coeff_LW <- read.csv("EchoviewR/Trawls/LW_coefficients.csv", header=T, stringsAs
 coeff_TS <- read.csv("EchoviewR/Trawls/TS_coefficients.csv", header=T, stringsAsFactors = FALSE)
 
 
+
 ##########################################################################################
 ##########################################################################################
 # data pre-processing
 
+
+
+## GET SETS PRESENT IN ECHOVIEW LOG
+
+# get xy data from log
+sdlog <- log[grep("SD", log$Region_name, ignore.case=TRUE),] #find SD
+sets <- unlist(strsplit(sdlog$Region_name, split = 'SD')) #clean SD
+sdlog$SET <- sub("^[0]+", "", sets[seq(2, length(sets), 2)]) #remove leading zeros
+set.xy <- sdlog[c("SET","Lat_s","Lon_s")]
+
+# check --are all the sets present in the echoview log?
+sort(unique(as.numeric(sdlog$SET)))
+unique(morpho$SET)
+
+# subset morpho and length_only data so that it only contains log sets
+morpho <- morpho[morpho$SET %in% unique(as.numeric(sdlog$SET)),]
+
+
+
+## SEPERATE WEIGHTS AND LENGTHS THEN JOIN
+
 # get weight records from morpho
-weights <- morpho[grep("WEIGHT",morpho$MORPHOMETRICS_ATTRIBUTE_DESC),c(8,11,12)]
-colnames(weights) <- c("SPECIMEN_ID", "WEIGHT", "WEIGHT_UNITS")
+weights <- morpho[grep("WEIGHT",morpho$MORPHOMETRICS_ATTRIBUTE_DESC),c(5,8,11,12)]
+colnames(weights) <- c("SPECIES_COMMON_NAME", "SPECIMEN_ID", "WEIGHT", "WEIGHT_UNITS")
   
 # check weight units
 table(weights$WEIGHT_UNITS)
@@ -48,57 +71,64 @@ lengths$SPECIMEN_MORPHOMETRICS_VALUE <- ifelse(lengths$MORPHOMETRICS_UNIT_DESC =
                                                lengths$SPECIMEN_MORPHOMETRICS_VALUE*10,
                                                lengths$SPECIMEN_MORPHOMETRICS_VALUE)
 
-# data subset with only lengths -> no weights taken
-length_only <- lengths[!(lengths$SPECIMEN_ID %in% weights$SPECIMEN_ID),]
+# merge lengths and weight data together by specimen, species which has both weights and lengths
+morpho <- merge(lengths, weights[c("SPECIMEN_ID", "WEIGHT", "WEIGHT_UNITS")], by = "SPECIMEN_ID", all.x = T)
 
-# merge lengths and weight data together by specimen, subset only data which has both weights and lengths
-morpho <- merge(lengths, weights, by = "SPECIMEN_ID")
-
-
-# get xy data from log
-sdlog <- log[grep("SD", log$Region_name, ignore.case=TRUE),] #find SD
-sets <- unlist(strsplit(sdlog$Region_name, split = 'SD')) #clean SD
-sdlog$SET <- sub("^[0]+", "", sets[seq(2, length(sets), 2)]) #remove leading zeros
-set.xy <- sdlog[c("SET","Lat_s","Lon_s")]
-
-# check --are all the sets present in the echoview log?
-sort(unique(as.numeric(sdlog$SET)))
-unique(morpho$SET)
-
-# subset morpho and length_only data so that it only contains log sets
-morpho <- morpho[morpho$SET %in% unique(as.numeric(sdlog$SET)),]
-length_only <- length_only[length_only$SET %in% unique(as.numeric(sdlog$SET)),]
+# get species that don't have weight measurments for each set?
+sp_summ <- ddply(morpho, .(SET,SPECIES_COMMON_NAME,MORPHOMETRICS_ATTRIBUTE_DESC), summarise,
+                  length = length(SPECIMEN_MORPHOMETRICS_VALUE),
+                  weight = length(WEIGHT[!is.na(WEIGHT)]))
+sp_summ[!(sp_summ$length == sp_summ$weight),]
+no_weights <- sp_summ[sp_summ$weight == 0,]
 
 
-## ADD SPECIES WITH NO WEIGHT MEASUREMENTS
+## CALCULATE WEIGHTS
 
-# which species only have length not weight measurements
-table(morpho$SPECIES_COMMON_NAME)
-table(length_only$SPECIES_COMMON_NAME)
-no_weights <- unique(length_only$SPECIES_COMMON_NAME)[!(unique(length_only$SPECIES_COMMON_NAME) %in%  unique(morpho$SPECIES_COMMON_NAME))]
-no_weights
+# subset no weights from morpho data
+no_morph <- NULL
+for (s in 1:nrow(no_weights)){
+df <- morpho[morpho$SET == no_weights$SET[s] & morpho$SPECIES_COMMON_NAME == no_weights$SPECIES_COMMON_NAME[s], ]
+no_morph <- rbind(no_morph, df)
+}
 
-# get lengths for no_weights species
-wec <- length_only[length_only$SPECIES_COMMON_NAME %in% no_weights,]
+# remove no_weights subset from morpho data
+sub_morph <- morpho[setdiff(rownames(morpho), rownames(no_morph)),]
 
-# merge with length - weight coefficients
-wec <- merge(wec, coeff_LW, by = "SPECIES_COMMON_NAME")
+# check
+nrow(no_morph) + nrow(sub_morph) == nrow(morpho)
 
 
-# calculate weights (in grams) for length_only species
-wec$WEIGHT <- wec$a * ((wec$SPECIMEN_MORPHOMETRICS_VALUE*wec$Total_length)/10)^wec$b
-wec$WEIGHT_UNITS <- "GRAM"
+# merge no_morph with length - weight coefficients
+table(no_morph$SPECIES_COMMON_NAME)
+table(coeff_LW$SPECIES_COMMON_NAME)
+mc <- merge(no_morph, coeff_LW, by = "SPECIES_COMMON_NAME")
 
-# bind morpho and wec together
-morpho <- rbind(morpho, wec[names(morpho)])
+
+# calculate weights (in grams) - only for matching length attributes
+for (n in 1:nrow(mc)){
+  if(mc$MORPHOMETRICS_ATTRIBUTE_DESC[n] == mc$LENGTH[n]){
+    mc$WEIGHT[n] <- mc$a[n] * ((mc$SPECIMEN_MORPHOMETRICS_VALUE[n]*mc$convert[n])/10)^mc$b[n]
+    mc$WEIGHT_UNITS[n] <- "GRAM"
+  }
+}
+
+# bind sub_morph and mc together
+rm(morpho)
+morpho <- rbind(sub_morph, mc[names(sub_morph)])
+
+#check -- remaining records with NA weight values
+table(morpho[is.na(morpho$WEIGHT),]$SPECIES_COMMON_NAME)
+
 
 
 ## CHECK
-
 # do species lengths in morpho match species length in coeff for regressions?
 coeff_TS[!duplicated(coeff_TS$Region_class),c("Region_class", "MORPHOMETRICS_ATTRIBUTE_DESC")]
-ddply(morpho, .(SPECIES_COMMON_NAME), summarise, 
-      MORPHOMETRICS_ATTRIBUTE_DESC = unique(MORPHOMETRICS_ATTRIBUTE_DESC))
+ddply(morpho, .(SPECIES_COMMON_NAME), summarise, MORPHOMETRICS_ATTRIBUTE_DESC = unique(MORPHOMETRICS_ATTRIBUTE_DESC))
+
+
+
+
 
 
 
@@ -136,7 +166,9 @@ species <- unlist(strsplit(species, "-"))
 length <- NULL
 for (i in species){
 d <- morpho[grep(i, morpho$SPECIES_COMMON_NAME, ignore.case=T),]
-length <- rbind(length,d)
+d$SPECIES_COMMON_NAME[grep("rockfish|perch", d$SPECIES_COMMON_NAME, ignore.case=T)] <- "Rockfish"
+  length <- rbind(length,d)
+
 }
 
 # species in length table
@@ -189,6 +221,7 @@ mean.lengths <- ddply(morpho, .(SET, SPECIES_COMMON_NAME), summarise,
                       mean = round(mean(SPECIMEN_MORPHOMETRICS_VALUE)),
                       median = median(SPECIMEN_MORPHOMETRICS_VALUE),
                       sd = sd(SPECIMEN_MORPHOMETRICS_VALUE))
+mean.lengths$SPECIES_COMMON_NAME[grep("rockfish|perch", mean.lengths$SPECIES_COMMON_NAME, ignore.case=T)] <- "Rockfish"
 
 # merge lat long with mean lengths
 lengths.xy <- merge(mean.lengths, set.xy, by = "SET")
@@ -279,11 +312,12 @@ comb$SPECIES_COMMON_NAME[comb$SPECIES_COMMON_NAME == "PACIFIC HAKE" &
 comb$SPECIES_COMMON_NAME[grep("herring", comb$SPECIES_COMMON_NAME, ignore.case=T)] <- "Herring"
 comb$SPECIES_COMMON_NAME[grep("rockfish|perch", comb$SPECIES_COMMON_NAME, ignore.case=T)] <- "Rockfish"
 comb$SPECIES_COMMON_NAME[grep("sardine", comb$SPECIES_COMMON_NAME, ignore.case=T)] <- "Sardine"
-comb$SPECIES_COMMON_NAME[grep("myctophid|lampfish", comb$SPECIES_COMMON_NAME, ignore.case=T)] <- "Myctophids"
+comb$SPECIES_COMMON_NAME[grep("myctophid|lampfish|headlight", comb$SPECIES_COMMON_NAME, ignore.case=T)] <- "Myctophids"
 comb$SPECIES_COMMON_NAME[grep("cps|sardine", comb$SPECIES_COMMON_NAME, ignore.case=T)] <- "CPS"
 comb$SPECIES_COMMON_NAME[grep("mackerel", comb$SPECIES_COMMON_NAME, ignore.case=T)] <- "Mackerel"
 comb$SPECIES_COMMON_NAME[grep("pollock", comb$SPECIES_COMMON_NAME, ignore.case=T)] <- "Pollock"
 comb$SPECIES_COMMON_NAME[grep("eulachon", comb$SPECIES_COMMON_NAME, ignore.case=T)] <- "Eulachon"
+comb$SPECIES_COMMON_NAME[grep("salmon", comb$SPECIES_COMMON_NAME, ignore.case=T)] <- "Salmon"
 
 # check species
 table(comb$SPECIES_COMMON_NAME)
@@ -294,8 +328,8 @@ table(comb$WEIGHT_UNITS)
 # calc mean length and weight for each species
 morph_sum <- ddply(comb, .(SPECIES_COMMON_NAME), summarise, 
                       mean.length.mm = mean(SPECIMEN_MORPHOMETRICS_VALUE),
-                      weigted.mean.length.mm = sum(SPECIMEN_MORPHOMETRICS_VALUE * WEIGHT)/sum(WEIGHT),
-                      mean.weight.kg = mean(WEIGHT)/1000,
+                      weigted.mean.length.mm = sum(SPECIMEN_MORPHOMETRICS_VALUE * WEIGHT, na.rm=T)/sum(WEIGHT, na.rm=T),
+                      mean.weight.kg = mean(WEIGHT, na.rm=T)/1000,
                       n = length(WEIGHT))
 morph_sum
 
@@ -314,9 +348,9 @@ comb$phake <- 1
 for (h in unique(comb$SET)){
   a1 <- comb$WEIGHT[comb$SPECIES_COMMON_NAME == "Age-1 Hake" & comb$SET == h]
   ad <- comb$WEIGHT[comb$SPECIES_COMMON_NAME == "Hake" & comb$SET == h]
-  ma1 <- mean(a1) * length(a1)
+  ma1 <- mean(a1, na.rm=T) * length(a1)
   ma1 <- ifelse(is.na(ma1),0,ma1)
-  mad <- mean(ad) * length(ad)
+  mad <- mean(ad, na.rm=T) * length(ad)
   mad <- ifelse(is.na(mad),0,mad)
   pa1 <-  ma1/(ma1+mad)
   pad <- 1 - pa1
@@ -331,7 +365,7 @@ comb$CATCH_WEIGHT <- comb$CATCH_WEIGHT * comb$phake
 # calc mean weights (in kg) for each species and each set
 morph_count <- ddply(comb, .(SET, SPECIES_COMMON_NAME), summarise,
                      mean.length.mm = mean(SPECIMEN_MORPHOMETRICS_VALUE),
-                     mean.weight.kg = mean(WEIGHT)/1000,
+                     mean.weight.kg = mean(WEIGHT, na.rm=T)/1000,
                      total.weight.kg = min(CATCH_WEIGHT))
 
 #merge catch and mean length data

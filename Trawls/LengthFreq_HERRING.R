@@ -11,6 +11,7 @@ morpho <- read.csv("Other data/Fishing/morpho.csv", header=T, stringsAsFactors =
 
 # load catch data for lat long
 catch <- read.csv("Other data/Fishing/catch.csv", header=T, stringsAsFactors = FALSE)
+catch <- catch[!is.na(catch$CATCH_WEIGHT),]
 
 # load echoview log
 log <- read.csv("Other data/Log/Cruiselog.csv", header=T, stringsAsFactors = FALSE, row.names=1)
@@ -24,18 +25,7 @@ coeff_TS <- read.csv("EchoviewR/Trawls/TS_coefficients.csv", header=T, stringsAs
 # dataframe pre-processing
 
 
-# remove weight records - only interested in lengths
-morpho <- morpho[grep("LENGTH",morpho$MORPHOMETRICS_ATTRIBUTE_DESC),]
-
-# check length units
-table(morpho$MORPHOMETRICS_UNIT_DESC)
-
-# convert all lengths to mm
-morpho$SPECIMEN_MORPHOMETRICS_VALUE <- ifelse(morpho$MORPHOMETRICS_UNIT_DESC == "CENTIMETRE", 
-                                              morpho$SPECIMEN_MORPHOMETRICS_VALUE*10,
-                                              morpho$SPECIMEN_MORPHOMETRICS_VALUE)
-
-
+## GET SETS PRESENT IN ECHOVIEW LOG
 
 # get xy data from log
 sdlog <- log[grep("SD", log$Region_name, ignore.case=TRUE),] #find SD
@@ -49,6 +39,21 @@ unique(morpho$SET)
 
 # subset morpho data so that it only contains log sets
 morpho <- morpho[morpho$SET %in% unique(as.numeric(sdlog$SET)),]
+
+
+
+## UPDATE UNITS
+
+# remove weight records - only interested in lengths
+morpho <- morpho[grep("LENGTH",morpho$MORPHOMETRICS_ATTRIBUTE_DESC),]
+
+# check length units
+table(morpho$MORPHOMETRICS_UNIT_DESC)
+
+# convert all lengths to mm
+morpho$SPECIMEN_MORPHOMETRICS_VALUE <- ifelse(morpho$MORPHOMETRICS_UNIT_DESC == "CENTIMETRE", 
+                                              morpho$SPECIMEN_MORPHOMETRICS_VALUE*10,
+                                              morpho$SPECIMEN_MORPHOMETRICS_VALUE)
 
 
 ## CHECK
@@ -92,6 +97,7 @@ species <- unlist(strsplit(species, "-"))
 length <- NULL
 for (i in species){
 d <- morpho[grep(i, morpho$SPECIES_DESC, ignore.case=T),]
+d$SPECIES_DESC[grep("rockfish|perch", d$SPECIES_DESC, ignore.case=T)] <- "Rockfish"
 length <- rbind(length,d)
 }
 
@@ -145,7 +151,8 @@ mean.lengths <- ddply(morpho, .(SET, SPECIES_DESC), summarise,
                       mean = round(mean(SPECIMEN_MORPHOMETRICS_VALUE)),
                       median = median(SPECIMEN_MORPHOMETRICS_VALUE),
                       sd = sd(SPECIMEN_MORPHOMETRICS_VALUE))
- 
+mean.lengths$SPECIES_DESC[grep("rockfish|perch", mean.lengths$SPECIES_DESC, ignore.case=T)] <- "Rockfish"
+
 # merge lat long with mean lengths
 lengths.xy <- merge(mean.lengths, set.xy, by = "SET")
 
@@ -235,11 +242,12 @@ comb$SPECIES_DESC[comb$SPECIES_DESC == "PACIFIC HAKE" &
 comb$SPECIES_DESC[grep("herring", comb$SPECIES_DESC, ignore.case=T)] <- "Herring"
 comb$SPECIES_DESC[grep("rockfish|perch", comb$SPECIES_DESC, ignore.case=T)] <- "Rockfish"
 comb$SPECIES_DESC[grep("sardine", comb$SPECIES_DESC, ignore.case=T)] <- "Sardine"
-comb$SPECIES_DESC[grep("myctophid|lampfish", comb$SPECIES_DESC, ignore.case=T)] <- "Myctophids"
+comb$SPECIES_DESC[grep("myctophid|lampfish|headlight", comb$SPECIES_DESC, ignore.case=T)] <- "Myctophids"
 comb$SPECIES_DESC[grep("cps|sardine", comb$SPECIES_DESC, ignore.case=T)] <- "CPS"
 comb$SPECIES_DESC[grep("mackerel", comb$SPECIES_DESC, ignore.case=T)] <- "Mackerel"
 comb$SPECIES_DESC[grep("pollock", comb$SPECIES_DESC, ignore.case=T)] <- "Pollock"
 comb$SPECIES_DESC[grep("eulachon", comb$SPECIES_DESC, ignore.case=T)] <- "Eulachon"
+comb$SPECIES_DESC[grep("salmon", comb$SPECIES_DESC, ignore.case=T)] <- "Salmon"
 
 # check species
 table(comb$SPECIES_DESC)
