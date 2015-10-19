@@ -38,7 +38,8 @@ trans <- read.csv("Other data/Fishing/transects.csv", header=T, stringsAsFactors
 
 
 #### Choose target strength - length regression constants (a or b estimtes)
-con <- "b"
+con <- "a"
+
 
 
 
@@ -119,9 +120,9 @@ int_cells <- merge(int_cells, trans, by = "Transect")
 
 
 # --  repeat script once for each survey or replicate combo
-log <- log[log$Survey == 1 & log$Replicate == "y", ]
-int_regions <- int_regions[int_regions$Survey == 1 & int_regions$Replicate == "y", ]
-int_cells <- int_cells[int_cells$Survey == 1 & int_cells$Replicate == "y", ]
+log <- log[log$Survey == 1,]# & log$Replicate == "y", ]
+int_regions <- int_regions[int_regions$Survey == 1,] # & int_regions$Replicate == "y", ]
+int_cells <- int_cells[int_cells$Survey == 1,] # & int_cells$Replicate == "y", ]
 
 
 ##########################################################################################
@@ -152,12 +153,13 @@ mixed <- c("Hake mix")
 
 # mixed regions from log
 matched <- log[log$Region_class %in% mixed,c("Region_ID","Region_name","Region_class","File")]
-matched$File <- strsplit(matched$File, "[.]csv")
+matched$File <- unlist(strsplit(matched$File, "[.]csv"))
 colnames(matched)[4] <- "Transect"
 
 
 # add matching sets
-matched$sets <- sub("[A-z ]*","",matched$Region_name) # remove leading letters
+matched$sets <- sub(".*set","",matched$Region_name) # remove everything before "set"
+matched$sets <- sub("[A-z ]*","",matched$sets) # remove leading letters and spaces
 matched$sets <- sub("-.*","",matched$sets) # remove everything after dash
 matched$sets <- sub("*.A","",matched$sets) # remove everything before A
 
@@ -364,7 +366,8 @@ int_hake <- int_regions[grep("hake",int_regions$Region_class, ignore.case=T),]
 
 # add sets
 for_sets <- int_hake[!duplicated(int_hake[c("Region_ID", "Region_name", "Region_class", "Transect")]),] 
-for_sets$SET <- sub("[A-z ]*","",for_sets$Region_name) # remove leading letters
+for_sets$SET <- sub(".*set","",for_sets$Region_name) # remove everything before "set"
+for_sets$SET <- sub("[A-z ]*","",for_sets$SET) # remove leading letters
 for_sets$SET <- sub("-.*","",for_sets$SET) # remove everything after dash
 for_sets$SET <- sub("*.A","",for_sets$SET) # remove everything before A
 for_sets
@@ -483,12 +486,14 @@ avg <- rbind(avg_a,avg_b)
 avg <- avg[order(avg$Region_class),]
 
 # scale up biomass to area of interest
-# area of survey (spatial extent) -> for Hake 2013 -> 10,000 sq nmi
-#avg$Total.Biomass.kg <- round(avg$Biomass.kg.sqnmi * 10000)
+# area of survey (spatial extent) -> 
+# for Hake 2015 -> 30,700 sq nmi
+# for replicates Hake 2015 -> 5,900
+avg$Total.Biomass.kg <- round(avg$Biomass.kg.sqnmi * 30700)
 avg
 
 # exports
-write.csv(avg, file = "Other data/Fishing/Biomass_Replicate1.csv")
+write.csv(avg, file = "Other data/Fishing/Biomass_Survey.csv")
 
 
 # standard deviation of biomass estimates

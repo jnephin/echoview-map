@@ -34,15 +34,6 @@ coeff <- read.csv("EchoviewR/Trawls/TS_coefficients.csv", header=T, stringsAsFac
 con <- "a"
 
 
-##########################################################################################
-##########################################################################################
-# species of interest
-
-# analysis regions classes
-log$Region_class <- sub( "\\s", "" , log$Region_class)
-reg <- unique(log$Region_class[log$Region_type == " Analysis"])
-reg
-
 
 
 ##########################################################################################
@@ -105,6 +96,24 @@ int_regions$Region_class <- sub( "\\s", "" , int_regions$Region_class)
 
 
 
+##########################################################################################
+##########################################################################################
+# species of interest
+
+# analysis regions classes
+log$Region_class <- sub( "\\s", "" , log$Region_class)
+reg <- unique(log$Region_class[log$Region_type == " Analysis"])
+reg
+
+
+# get analysis regions from log
+analysis <- log[log$Region_type == " Analysis",]
+
+# change file to transect
+analysis$File <- strsplit(analysis$File, "[.]csv")
+colnames(analysis)[16] <- "Transect"
+
+
 
 ##########################################################################################
 ##########################################################################################
@@ -117,16 +126,19 @@ int_regions$Region_class <- sub( "\\s", "" , int_regions$Region_class)
 ### Calculate nasc ratio
                       
 # mixed regions
-reg
 mixed <- c("Herring-Rockfish mix", "Hake mix")
 
 # mixed regions from log
 matched <- log[log$Region_class %in% mixed,c("Region_ID","Region_name","Region_class","File")]
-matched$File <- strsplit(matched$File, "[.]csv")
+matched$File <- unlist(strsplit(matched$File, "[.]csv"))
 colnames(matched)[4] <- "Transect"
 
 # add matching sets
-matched$sets <- c(14,29,29,29,29)
+matched$sets <- sub(".*set","",matched$Region_name) # remove everything before "set"
+matched$sets <- sub("[A-z ]*","",matched$sets) # remove leading letters and spaces
+matched$sets <- sub("-.*","",matched$sets) # remove everything after dash
+matched$sets <- sub("*.A","",matched$sets) # remove everything before A
+matched
 
 # mean weight, length and count data for mixed sets
 mat <- morph[morph$SET %in% matched$sets,]
@@ -202,15 +214,6 @@ int_regions <- rbind(int_regions, mix_data[names(int_regions)])
 ##########################################################################################
 ##########################################################################################
 # Update mixed anlaysis regions in log
-
-
-# get analysis regions from log
-analysis <- log[log$Region_type == " Analysis",]
-
-# change file to transect
-analysis$File <- strsplit(analysis$File, "[.]csv")
-colnames(analysis)[16] <- "Transect"
-
 
 
 ## -- skip if there are no mixed regions
