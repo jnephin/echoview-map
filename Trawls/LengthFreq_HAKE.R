@@ -36,8 +36,7 @@ coeff_TS <- read.csv("EchoviewR/Trawls/TS_coefficients.csv", header=T, stringsAs
 
 # get xy data from log
 sdlog <- log[grep("SD", log$Region_name, ignore.case=TRUE),] #find SD
-sets <- unlist(strsplit(sdlog$Region_name, split = 'SD')) #clean SD
-sdlog$SET <- sub("^[0]+", "", sets[seq(2, length(sets), 2)]) #remove leading zeros
+sdlog$SET <-  as.numeric(sub("*.SD", "", sdlog$Region_name))
 set.xy <- sdlog[c("SET","Lat_s","Lon_s")]
 
 # check --are all the sets present in the echoview log?
@@ -374,6 +373,9 @@ morph_count
 
 # export summary
 write.csv(morph_count, file = "Other data/Fishing/morpho_counts.csv")
+
+
+
 
 
 

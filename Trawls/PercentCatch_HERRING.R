@@ -18,18 +18,43 @@ log <- log[!(log$Lat_s == 999),]
 
 
 ############################################################################
-# group by species by tow
-catch <- ddply(catch, .(SET, SPECIES_DESC), 
-               summarise, CATCH_WEIGHT = sum(CATCH_WEIGHT))
+# add transect # to catch data
+trans <- log[grep("SD",log$Region_name),c("Region_name", "File")]
+trans$SET <- as.numeric(sub("*.SD", "", trans$Region_name))
+trans$Replicate <- sub("T", "", trans$File)
+trans$Replicate <- as.numeric(sub("[.].*", "", trans$Replicate))
+catch <- merge(catch, trans, by = "SET")
 
+
+############################################################################
 # percent catch by tow
+
 catch$CATCH_WEIGHT[is.na(catch$CATCH_WEIGHT)]  <- 0
 catch <- ddply(catch, .(SET), transform, TOTAL_CATCH = sum(CATCH_WEIGHT))
 catch$PERCENT <- catch$CATCH_WEIGHT/catch$TOTAL_CATCH*100
 
 # export summary
-catch_summ <- catch[c("SET","SPECIES_DESC","CATCH_WEIGHT","PERCENT")]
+catch_summ <- catch[c("SET","SPECIES_DESC","CATCH_WEIGHT","PERCENT","Replicate")]
 write.csv(catch_summ, file = "Other data/Fishing/catch_summary.csv")
+
+
+
+
+
+
+
+####------------------------------------------------------------------####
+## RUN once for each replicate
+catch <- catch[catch$Replicate == 2,]
+
+
+
+
+
+
+############################################################################
+# plot percentage of total catch for the survey
+
 
 ## total catch data for all sets combined
 total.catch <- aggregate(CATCH_WEIGHT ~ SPECIES_DESC, sum, data = catch)
@@ -44,11 +69,6 @@ cols <- c("#e41a1c", "#ff7f00", "#FFD900",  "#4daf4a","#377eb8", "#984ea3", "#f7
 leg <- ifelse(top > length(cols), length(cols), top)
 pal <- colorRampPalette(cols[1:leg],space = c("rgb"),interpolate = c("spline"))(top)
 
-
-
-
-############################################################################
-# plot percentage of total catch for the survey
 
 # percent catch
 total.catch$percent <- total.catch$CATCH_WEIGHT/sum(total.catch$CATCH_WEIGHT)*100
@@ -98,7 +118,7 @@ plototal <- ggplot(data = top.catch) +
         plot.margin = unit(c(0,0,0,0), "lines"))
 plototal
 
-pdf("Other data/Figures/TotalCatch_Percent.pdf", width = 6, height = 3.5)
+pdf("Other data/Figures/TotalCatch_Percent_Rep2.pdf", width = 6, height = 3.5)
 plototal
 dev.off()
 
@@ -124,7 +144,7 @@ pal.a <- colorRampPalette(cols[1:(leg+1)],space = c("rgb"),interpolate = c("spli
 ## plot
 ggplot(data = analysis.catch) +
   geom_bar(aes(x=factor(SET), y = PERCENT, fill = SPECIES_DESC), stat = "identity")+
-  #scale_fill_manual(values= pal, name = "Species")+
+  scale_fill_manual(values= pal, name = "Species")+
   labs(x="SET")+
   theme_bw()+
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
@@ -221,7 +241,7 @@ mapkg <-  ggplot(data = NULL) +
         panel.margin = unit(0.2, "lines")) # top, right, bottom, and
 mapkg
 
-pdf("Other data/Figures/CatchWeight_Map.pdf", width = 8.5, height = 5)
+pdf("Other data/Figures/CatchWeight_Map_Rep2.pdf", width = 8.5, height = 5)
 mapkg
 dev.off()
 
@@ -265,9 +285,9 @@ mapper <-  ggplot(data = NULL) +
         panel.margin = unit(0.2, "lines")) # top, right, bottom, and
 mapper
 
-pdf("Other data/Figures/CatchPercent_Map.pdf", width = 8.5, height = 5)
-mapper
-dev.off()
+#pdf("Other data/Figures/CatchPercent_Map_Rep1.pdf", width = 8.5, height = 5)
+#mapper
+#dev.off()
 
 
 

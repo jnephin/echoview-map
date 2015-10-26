@@ -1,5 +1,6 @@
-
 require(ggplot2)
+require(grid)
+require(scales)
 require(plyr)
 
 # set working directory 
@@ -50,18 +51,19 @@ con <- "a"
 # prep NASC
 
 
-
 ## FOR CELL EXPORTS
 
 # sum nasc by cell by interval (across depth bins)
-int_cells <- ddply(nasc_cells, .(Lat_S, Lon_S, Interval, EV_filename),
+int_cells <- ddply(nasc_cells, .(Lat_S, Lon_S, Lat_E, Lon_E, Interval, EV_filename),
                    summarise,
-             NASC = sum(NASC),
-             Date = head(Date_S,1),
-             Time = head(Time_S,1))
+                   NASC = sum(NASC),
+                   Date = head(Date_S,1),
+                   Time = head(Time_S,1))
 
 # remove bad data
 int_cells <- int_cells[!int_cells$Lat_S == 999,]
+int_cells <- int_cells[!int_cells$Lat_E == 999,]
+
 
 # check for off transect intervals
 # plot cells
@@ -70,19 +72,18 @@ ggplot(data = int_cells, aes(x = Lon_S, y = Lat_S))+
   #geom_text(aes(label = Interval), size = 3)+
   theme_bw()
 
-# change file name into transect
-tempf <- unlist(strsplit(int_cells$EV_filename, "[.]EV"))
-tempt <- unlist(strsplit(tempf, "/"))
-steps <- length(tempt)/length(tempf)
-int_cells$Transect <- tempt[(seq(steps,to=length(tempt),by=steps))]
-int_cells <- int_cells[,c( "Date", "Time", "Interval","Lat_S","Lon_S", "NASC","Transect")]
+# add transect
+int_cells$Transect <-  sub(".*/", "", int_cells$EV_filename)  # remove everything before /
+int_cells$Transect <-  sub(".EV", "", int_cells$Transect) # removes '.EV'
+int_cells <- int_cells[,c( "Date", "Time", "Interval","Lat_S","Lon_S","Lat_E","Lon_E", "NASC","Transect")]
 
 
 
 ## FOR REGION EXPORTS
 
 # sum nasc by region by cell by interval (across depth bins)
-int_regions <- ddply(nasc, .(Region_class, Region_ID, Region_name, Lat_S, Lon_S, Interval, EV_filename), 
+int_regions <- ddply(nasc, .(Region_class, Region_ID, Region_name, 
+                             Lat_S, Lon_S, Lat_E, Lon_E, Interval, EV_filename), 
                      summarise,
                      NASC = sum(PRC_NASC),
                      Date = head(Date_S,1),
@@ -93,15 +94,18 @@ ggplot(data = int_regions, aes(x = Lon_S, y = Lat_S, colour = Region_class))+
   geom_point()+
   theme_bw()
 
+# check for bad data
+int_regions[int_regions$Lat_S == 999,]
+int_regions[int_regions$Lat_E == 999,]
+
 # change file name into transect
-tempf <- unlist(strsplit(int_regions$EV_filename, "[.]EV"))
-tempt <- unlist(strsplit(tempf, "/"))
-steps <- length(tempt)/length(tempf)
-int_regions$Transect <- tempt[(seq(steps,to=length(tempt),by=steps))]
-int_regions <- int_regions[,c( "Date", "Time", "Interval","Lat_S","Lon_S", "Region_class", "Region_ID", "Region_name","NASC", "Transect")]
+int_regions$Transect <-  sub(".*/", "", int_regions$EV_filename) # remove everything before /
+int_regions$Transect <-  sub(".EV", "", int_regions$Transect)  # removes '.EV'
+int_regions <- int_regions[,c( "Date", "Time", "Interval","Lat_S","Lon_S", "Lat_E","Lon_E","Region_class", "Region_ID", "Region_name","NASC", "Transect")]
 
 # remove leading space
 int_regions$Region_class <- sub( "\\s", "" , int_regions$Region_class)
+
 
 
 
@@ -114,15 +118,27 @@ int_regions$Region_class <- sub( "\\s", "" , int_regions$Region_class)
 trans$Transect <- sub(".csv", "", trans$File)
 
 ## merge nasc and log with replicate info
+dim(int_regions)
 log <- merge(log, trans, by = "File")
 int_regions <- merge(int_regions, trans, by = "Transect")
 int_cells <- merge(int_cells, trans, by = "Transect")
+dim(int_regions)
 
 
 # --  repeat script once for each survey or replicate combo
 log <- log[log$Survey == 1,]# & log$Replicate == "y", ]
 int_regions <- int_regions[int_regions$Survey == 1,] # & int_regions$Replicate == "y", ]
 int_cells <- int_cells[int_cells$Survey == 1,] # & int_cells$Replicate == "y", ]
+
+
+#plot regions
+ggplot(data = int_regions, aes(x = Lon_S, y = Lat_S, colour = Region_class))+
+  geom_point()+
+  theme_bw()
+
+
+
+
 
 
 ##########################################################################################
@@ -161,7 +177,7 @@ colnames(matched)[4] <- "Transect"
 matched$sets <- sub(".*set","",matched$Region_name) # remove everything before "set"
 matched$sets <- sub("[A-z ]*","",matched$sets) # remove leading letters and spaces
 matched$sets <- sub("-.*","",matched$sets) # remove everything after dash
-matched$sets <- sub("*.A","",matched$sets) # remove everything before A
+matched$sets <- sub(".*A","",matched$sets) # remove everything before A
 
 # mean weight, length and count data for mixed sets
 mat <- morph[morph$SET %in% matched$sets,]
@@ -236,12 +252,8 @@ int_regions <- rbind(int_regions, mix_data[names(int_regions)])
 
 
 
-##########################################################################################
-##########################################################################################
-# Update mixed anlaysis regions in log
+## Update mixed anlaysis regions in log
 
-
-## -- skip if there are no mixed regions
 
 # merge matched sets with analysis
 man <- merge(analysis, matched, by=c("Region_ID", "Region_name", "Region_class", "Transect"))
@@ -272,12 +284,13 @@ table(analysis$Region_class)
 
 
 
+
+
+
 ##########################################################################################
 ##########################################################################################
 # total distance travelled in survey
 
-# order
-int_cells <- int_cells[order(int_cells$Interval),]
 
 # distance between lat long points in nmi
 earth.dist <- function (long1, lat1, long2, lat2) {
@@ -295,56 +308,23 @@ earth.dist <- function (long1, lat1, long2, lat2) {
   return(d)
 }
 
-# loop through intervals in order
-for (j in 1:nrow(int_cells)) {
-  int_cells$dist[j] <-  earth.dist(int_cells$Lon_S[j], int_cells$Lat_S[j], 
-                                   int_cells$Lon_S[j+1], int_cells$Lat_S[j+1])
-}
 
-# change last NA to zero
-int_cells[nrow(int_cells),c("dist")] <- 0
-
-# remove distance between transects
-rem <- NULL
-for (d in (1:nrow(int_cells)-1)) {
-ind <- int_cells$Transect[d] != int_cells$Transect[d+1]
-rem[d] <- ind
-}
-
-int_cells$dist[rem == TRUE] <- 0
-
-# remove distance where intervals are not sequential (e.g. between BT to RT)
-rem <- NULL
-for (d in (1:nrow(int_cells)-1)) {
-  ind <- int_cells$Interval[d] != (int_cells$Interval[d+1] - 1)
-  rem[d] <- ind
-}
-
-int_cells$dist[rem == TRUE] <- 0
-
-# check -- should all be close to .5 nmi
-summary(int_cells$dist)
-
-# total distance covered on survey (in nautical miles)
+# calculate the total distance (linear transect area) covered by each cell
+int_cells$dist <-  earth.dist(int_cells$Lon_S, int_cells$Lat_S, int_cells$Lon_E, int_cells$Lat_E)
 total <- sum(int_cells$dist)
 total
 
 
 
 
-##########################################################################################
-##########################################################################################
-# total distance travelled in regions
-
-
 # calculate the total distance (linear transect area) covered by regions for each species
 dat <- NULL
 regions <- NULL
-for (p in unique(analysis$Region_class)){
-  da <- analysis[analysis$Region_class == p,]
+for (p in unique(int_regions$Region_class)){
+  da <- int_regions[int_regions$Region_class == p,]
   # loop through intervals in order
   for (l in 1:nrow(da)) {
-    da$dist[l] <-  earth.dist(da$Lon_s[l], da$Lat_s[l], da$Lon_e[l], da$Lat_e[l])
+    da$dist[l] <-  earth.dist(da$Lon_S[l], da$Lat_S[l], da$Lon_E[l], da$Lat_E[l])
   }
   dat <- data.frame(Region_class = p, distance = sum(da$dist))
   regions <- rbind(regions, dat)
@@ -353,6 +333,8 @@ for (p in unique(analysis$Region_class)){
 # proportion of total survey that regions covered
 regions$proportion <- regions$distance/total
 regions
+
+
 
 
 
@@ -369,7 +351,7 @@ for_sets <- int_hake[!duplicated(int_hake[c("Region_ID", "Region_name", "Region_
 for_sets$SET <- sub(".*set","",for_sets$Region_name) # remove everything before "set"
 for_sets$SET <- sub("[A-z ]*","",for_sets$SET) # remove leading letters
 for_sets$SET <- sub("-.*","",for_sets$SET) # remove everything after dash
-for_sets$SET <- sub("*.A","",for_sets$SET) # remove everything before A
+for_sets$SET <- sub(".*A","",for_sets$SET) # remove everything before A
 for_sets
 
 # merge sets and int hake data
@@ -496,7 +478,34 @@ avg
 write.csv(avg, file = "Other data/Fishing/Biomass_Survey.csv")
 
 
-# standard deviation of biomass estimates
-SD <- aggregate(Biomass.kg.sqnmi ~ Region_class, sd, data = avg)
-SD
+
+
+
+
+###################################################################################
+# plot biomass comparison
+
+comp_est <- ggplot(data = avg) + 
+  geom_bar(aes(x = Region_class, y = Total.Biomass.kg/1000, group = Estimate, fill = Region_class),
+           stat= "identity", position = "dodge", colour = "black", size = .1) +
+  geom_text(aes(x=Region_class, y = Total.Biomass.kg/1000, group = Estimate, label = Estimate), 
+            position = position_dodge(width=1), size = 3, vjust = -.3) +
+  labs(x="", y=" Total Biomass (mT)") +
+  scale_fill_brewer(palette = "Set1", guide="none") +
+  scale_y_continuous(label=comma, expand =c(0,0), limit= c(0,380000))+
+  # themes
+  theme(panel.border = element_rect(fill=NA, colour="black", size = .1),
+        panel.background = element_rect(fill="white",colour="white"),
+        strip.background = element_blank(),
+        axis.ticks = element_line(colour="black"),
+        axis.ticks.length = unit(0.1,"cm"),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        axis.text = element_text(size=10, colour = "black"),
+        axis.title = element_text(size=11, colour = "black"),
+        plot.margin = unit(c(.2,.2,.2,.2), "lines")) # top, right, bottom, and left
+pdf("Other data/Figures/Biomass.pdf", width = 8, height = 5)
+comp_est
+dev.off()
+
 

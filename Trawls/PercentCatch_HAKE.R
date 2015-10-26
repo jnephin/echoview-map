@@ -10,10 +10,13 @@ setwd('..'); setwd('..')
 
 # load catch data
 catch <- read.csv("Other data/Fishing/catch.csv", header=T, stringsAsFactors = FALSE)
+reps <- read.csv("Other data/Fishing/replicates.csv", header=T, stringsAsFactors = FALSE)
+
 
 # load cruise log
 log <- read.csv("Other data/Log/Cruiselog.csv", header=T, stringsAsFactors = FALSE, row.names=1)
 log <- log[!(log$Lat_s == 999),]
+trans <- read.csv("Other data/Fishing/transects.csv", header=T, stringsAsFactors = FALSE)
 
 
 
@@ -30,9 +33,28 @@ catch$CATCH_WEIGHT[is.na(catch$CATCH_WEIGHT)] <- 0
 catch$PERCENT <- catch$CATCH_WEIGHT/catch$FE_TOTAL_CATCH_WEIGHT*100
 colnames(catch)[1] <- "SET"
 
+# merge catch and log with replicate info
+catch <- merge(catch, reps, by = "SET")
+log <- merge(log, trans, by = "File")
+
 # export summary
-catch_summ <- catch[c("SET","SPECIES_COMMON_NAME","SPECIES_SCIENCE_NAME", "CATCH_WEIGHT","PERCENT")]
+catch_summ <- catch[c("SET","SPECIES_COMMON_NAME","SPECIES_SCIENCE_NAME", "CATCH_WEIGHT","PERCENT", "Survey")]
 write.csv(catch_summ, file = "Other data/Fishing/catch_summary.csv")
+
+
+
+
+############################################################################
+############################################################################
+
+# --  repeat script once for each survey
+log <- log[log$Survey == 2, ]
+catch <- catch[catch$Survey == 2, ]
+
+############################################################################
+############################################################################
+
+
 
 ## total catch data for all sets combined
 total.catch <- aggregate(CATCH_WEIGHT ~ SPECIES_COMMON_NAME, sum, data = catch)
@@ -127,7 +149,7 @@ pal.a <- colorRampPalette(cols[1:(leg+1)],space = c("rgb"),interpolate = c("spli
 ## plot
 ggplot(data = analysis.catch) +
   geom_bar(aes(x=factor(SET), y = PERCENT, fill = SPECIES_COMMON_NAME), stat = "identity")+
-  scale_fill_manual(values= pal, name = "Species")+
+ # scale_fill_manual(values= pal, name = "Species")+
   labs(x="SET")+
   theme_bw()+
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
@@ -221,7 +243,7 @@ mapkg <-  ggplot(data = NULL) +
         legend.key = element_blank(),
         legend.justification = c(0,1), legend.position = "right",
         plot.margin = unit(c(.5,.5,.5,.5), "lines"), 
-        panel.margin = unit(0.2, "lines")) # top, right, bottom, and
+        panel.margin = unit(0.3, "lines")) # top, right, bottom, and
 mapkg
 
 pdf("Other data/Figures/CatchWeight_Map.pdf", width = 8.5, height = 5)
@@ -265,7 +287,7 @@ mapper <-  ggplot(data = NULL) +
         legend.key = element_blank(),
         legend.justification = c(0,1), legend.position = "right",
         plot.margin = unit(c(.5,.5,.5,.5), "lines"), 
-        panel.margin = unit(0.2, "lines")) # top, right, bottom, and
+        panel.margin = unit(0.3, "lines")) # top, right, bottom, and
 mapper
 
 pdf("Other data/Figures/CatchPercent_Map.pdf", width = 8.5, height = 5)

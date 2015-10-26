@@ -29,16 +29,17 @@ coeff_TS <- read.csv("EchoviewR/Trawls/TS_coefficients.csv", header=T, stringsAs
 
 # get xy data from log
 sdlog <- log[grep("SD", log$Region_name, ignore.case=TRUE),] #find SD
-sets <- unlist(strsplit(sdlog$Region_name, split = 'SD')) #clean SD
-sdlog$SET <- sub("^[0]+", "", sets[seq(2, length(sets), 2)]) #remove leading zeros
-set.xy <- sdlog[c("SET","Lat_s","Lon_s")]
+sdlog$SET <-  as.numeric(sub(".*SD", "", sdlog$Region_name))
+sdlog$Replicate <- sub("T", "", sdlog$File)
+sdlog$Replicate <- as.numeric(sub("[.].*", "", sdlog$Replicate))
+set.xy <- sdlog[c("SET","Lat_s","Lon_s", "Replicate")]
 
 # check --are all the sets present in the echoview log?
 sort(unique(as.numeric(sdlog$SET)))
 unique(morpho$SET)
 
 # subset morpho data so that it only contains log sets
-morpho <- morpho[morpho$SET %in% unique(as.numeric(sdlog$SET)),]
+morpho <- merge(morpho, set.xy[c("SET","Replicate")], by = "SET")
 
 
 
@@ -120,17 +121,20 @@ histo <-  ggplot(data = length[length$SPECIES_DESC == f,]) +
   geom_vline(xintercept = meanl, colour = "red") +
   labs(x="Length (mm)", y="Frequency") +
   scale_y_continuous(expand = c(0.01, 0)) +
+  facet_wrap(~Replicate, ncol=2) +
   # themes
   theme(panel.border = element_rect(fill=NA, colour="black", size = .1),
         panel.background = element_rect(fill="white",colour="white"),
+        strip.background = element_blank(),
         axis.ticks = element_line(colour="black"),
         axis.ticks.length = unit(0.1,"cm"),
         panel.grid.major = element_blank(),
         panel.grid.minor = element_blank(),
         axis.text = element_text(size=7, colour = "black"),
+        strip.text = element_text(size=10, colour = "black"),
         axis.title = element_text(size=10, colour = "black"),
         plot.margin = unit(c(.2,.2,.2,.2), "lines")) # top, right, bottom, and left
-pdf(paste("Other data/Figures/","Lengths_Histogram",name,".pdf", sep=""), width = 4, height = 3.5)
+pdf(paste("Other data/Figures/","Lengths_Histogram",name,".pdf", sep=""), width = 5, height = 3)
 print(histo)
 dev.off()
 }
@@ -256,12 +260,16 @@ table(comb$SPECIES_DESC)
 table(comb$WEIGHT_UNITS)
 
 # calc mean length and weight for each species
-morph_sum <- ddply(comb, .(SPECIES_DESC), summarise, 
+morph_sum <- NULL
+for (r in 1:2){
+df <- ddply(comb[comb$Replicate == r,], .(SPECIES_DESC), summarise, 
                       mean.length.mm = mean(SPECIMEN_MORPHOMETRICS_VALUE),
                       weigted.mean.length.mm = sum(SPECIMEN_MORPHOMETRICS_VALUE * WEIGHT)/sum(WEIGHT),
                       mean.weight.kg = mean(WEIGHT)/1000,
                       n = length(WEIGHT))
-morph_sum
+df$Replicate <- r
+morph_sum <- rbind(morph_sum, df)
+}
 
 # export
 write.csv(morph_sum, file = "Other data/Fishing/morpho_summary.csv")
@@ -293,10 +301,15 @@ for (h in unique(comb$SET)){
 comb$CATCH_WEIGHT <- comb$CATCH_WEIGHT * comb$phake
 
 # calc mean weights (in kg) for each species and each set
-morph_count <- ddply(comb, .(SET, SPECIES_DESC), summarise,
+morph_count <- NULL
+for (r in 1:2){
+df <- ddply(comb[comb$Replicate == r,], .(SET, SPECIES_DESC), summarise,
                 mean.length.mm = mean(SPECIMEN_MORPHOMETRICS_VALUE),
                 mean.weight.kg = mean(WEIGHT)/1000,
                 total.weight.kg = min(CATCH_WEIGHT))
+df$Replicate <- r
+morph_count <- rbind(morph_count, df)
+}
 
 #merge catch and mean length data
 morph_count$Estimated_N <- round(morph_count$total.weight.kg/morph_count$mean.weight.kg)

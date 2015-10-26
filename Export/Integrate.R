@@ -80,6 +80,10 @@ ExpVarObj <- EVfile[["Properties"]][["Export"]][["Variables"]]
 
 # enable export variables
 exNASC <- ExpVarObj$Item("NASC"); exNASC[["Enabled"]] = 1
+exLat_S <- ExpVarObj$Item("Lat_S"); exLat_S[["Enabled"]] = 1
+exLon_S <- ExpVarObj$Item("Lon_S"); exLon_S[["Enabled"]] = 1
+exLat_E <- ExpVarObj$Item("Lat_E"); exLat_E[["Enabled"]] = 1
+exLon_E <- ExpVarObj$Item("Lon_E"); exLon_E[["Enabled"]] = 1
 
 # export properties mode set to spreadsheet
 ExpObj <- EVfile[["Properties"]][["Export"]]
@@ -152,13 +156,11 @@ for (j in variables) {
   
   exp.list <- list.files(file.path(getwd(), EXPdir, j), pattern="*IntegratedByCells.csv")
 
-columns <- c("Process_ID", "Interval", "Layer", "Sv_mean",	"NASC",	"Layer_depth_min",   "Layer_depth_max", "VL_start",	"VL_end",	"Date_S",	 "Time_S",	 "Lat_S",	 "Lon_S",	 "Exclude_below_line_depth_mean",	 "Processing_version",	 "Processing_date",	 "Processing_time",	 "EV_filename",	 "Alpha",	 "Gain_constant",	 "Noise_Sv_1m",	 "Minimum_Sv_threshold_applied",	 "Minimum_integration_threshold",	 "Maximum_Sv_threshold_applied",	 "Maximum_integration_threshold",	 "Exclude_above_line_applied",	 "Exclude_above_line_depth_mean",	 "Exclude_below_line_applied",	 "Standard_deviation")
 
 df <- NULL
 for (k in exp.list){
   d <- read.csv(file.path(getwd(), EXPdir, j, k), header = T)
   colnames(d)[1] <- "Process_ID"
-  d <- d[,columns]
   df <- rbind(df,d)
 }
 
@@ -180,13 +182,10 @@ for (j in variables) {
   
   exp.list <- list.files(file.path(getwd(), EXPdir, j), pattern="*IntegratedByRegions.csv")
   
-  columns <- c("Region_ID",   "Region_name",   "Region_class",	 "Process_ID", "Sv_mean",	 "NASC",	 "VL_start",	 "VL_end",	 "Date_S",	 "Time_S",	 "Lat_S",	 "Lon_S",	 "Exclude_below_line_depth_mean",	 "Processing_version",	 "Processing_date",	 "Processing_time",	 "EV_filename",	 "Alpha",	 "Gain_constant",	 "Noise_Sv_1m",	 "Minimum_Sv_threshold_applied",	 "Minimum_integration_threshold",	 "Maximum_Sv_threshold_applied",	 "Maximum_integration_threshold",	 "Exclude_above_line_applied",	 "Exclude_above_line_depth_mean",	 "Exclude_below_line_applied",	 "Standard_deviation")
-  
   df <- NULL
   for (k in exp.list){
     d <- read.csv(file.path(getwd(), EXPdir, j, k), header = T)
     colnames(d)[1] <- "Region_ID"
-    d <- d[,columns]
     df <- rbind(df,d)
   }
   
@@ -207,13 +206,11 @@ for (j in variables) {
   
   exp.list <- list.files(file.path(getwd(), EXPdir, j), pattern="*IntegratedByRegionsByCells.csv")
   
-  columns <- c("Region_ID",   "Region_name",	 "Region_class",	 "Process_ID",	 "Interval",	 "Layer",	 "Sv_mean",	 "PRC_NASC",	 "Layer_depth_min",	 "Layer_depth_max",	 "VL_start",	 "VL_end",	 "Date_S",	 "Time_S",	 "Lat_S",	 "Lon_S",	 "Exclude_below_line_depth_mean",	 "Processing_version",	 "Processing_date",	 "Processing_time",	 "EV_filename",	 "Alpha",	 "Gain_constant",	 "Noise_Sv_1m",	 "Minimum_Sv_threshold_applied",	 "Minimum_integration_threshold",	 "Maximum_Sv_threshold_applied",	 "Maximum_integration_threshold",	 "Exclude_above_line_applied",	 "Exclude_above_line_depth_mean",	 "Exclude_below_line_applied",	 "Standard_deviation")
   
   df <- NULL
   for (k in exp.list){
     d <- read.csv(file.path(getwd(), EXPdir, j, k), header = T)
     colnames(d)[1] <- "Region_ID"
-    d <- d[,columns]
     df <- rbind(df,d)
   }
   
