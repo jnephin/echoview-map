@@ -28,8 +28,8 @@ nasc_cells <- read.csv("Acoustics/Echoview/Exports/Sv raw pings T2/IntegratedByC
                        stringsAsFactors = FALSE, row.names = 1)
 
 # load echoview log
-log <- read.csv("Other data/Log/Cruiselog.csv", header=T, stringsAsFactors = FALSE, row.names=1)
-colnames(log)[1] <- "Region_ID"
+logs <- read.csv("Other data/Log/Cruiselog.csv", header=T, stringsAsFactors = FALSE, row.names=1)
+colnames(logs)[1] <- "Region_ID"
 
 # load target strength coefficients
 coeff <- read.csv("EchoviewR/Trawls/TS_coefficients.csv", header=T, stringsAsFactors = FALSE)
@@ -39,75 +39,68 @@ trans <- read.csv("Other data/Fishing/transects.csv", header=T, stringsAsFactors
 
 
 
-#### Choose target strength - length regression constants (a or b estimtes)
-con <- "b"
-
-
-#### Choose replicate or Area
-#reps <- 2
- Area <- 2
-
-
 
 ##########################################################################################
 ##########################################################################################
-# prep NASC
+# NASC DATAFRAMES
 
 
 ## FOR CELL EXPORTS
 
 # sum nasc by cell by interval (across depth bins)
-int_cells <- ddply(nasc_cells, .(Lat_S, Lon_S, Lat_E, Lon_E, Interval, EV_filename),
+int_cell <- ddply(nasc_cells, .(Lat_S, Lon_S, Lat_E, Lon_E, Interval, EV_filename),
                    summarise,
                    NASC = sum(NASC),
                    Date = head(Date_S,1),
                    Time = head(Time_S,1))
 
 # remove bad data
-int_cells <- int_cells[!int_cells$Lat_S == 999,]
-int_cells <- int_cells[!int_cells$Lat_E == 999,]
+int_cell <- int_cell[!int_cell$Lat_S == 999,]
+int_cell <- int_cell[!int_cell$Lat_E == 999,]
 
 
 # check for off transect intervals
 # plot cells
-ggplot(data = int_cells, aes(x = Lon_S, y = Lat_S))+
+ggplot(data = int_cell, aes(x = Lon_S, y = Lat_S))+
   geom_point()+
   #geom_text(aes(label = Interval), size = 3)+
   theme_bw()
 
 # add transect
-int_cells$Transect <-  sub(".*/", "", int_cells$EV_filename)  # remove everything before /
-int_cells$Transect <-  sub(".EV", "", int_cells$Transect) # removes '.EV'
-int_cells <- int_cells[,c( "Date", "Time", "Interval","Lat_S","Lon_S","Lat_E","Lon_E", "NASC","Transect")]
+int_cell$Transect <-  sub(".*/", "", int_cell$EV_filename)  # remove everything before /
+int_cell$Transect <-  sub(".EV", "", int_cell$Transect) # removes '.EV'
+int_cell <- int_cell[,c( "Date", "Time", "Interval","Lat_S","Lon_S","Lat_E","Lon_E", "NASC","Transect")]
 
 
 
 ## FOR REGION EXPORTS
 
 # sum nasc by region by cell by interval (across depth bins)
-int_regions <- ddply(nasc, .(Region_class, Region_ID, Region_name, 
+int_region <- ddply(nasc, .(Region_class, Region_ID, Region_name, 
                              Lat_S, Lon_S, Lat_E, Lon_E, Interval, EV_filename), 
                      summarise,
                      NASC = sum(PRC_NASC),
                      Date = head(Date_S,1),
                      Time = head(Time_S,1))
 
+
+# check for bad data
+int_region[int_region$Lat_S == 999,]
+int_region[int_region$Lat_E == 999,]
+
 #plot regions
-ggplot(data = int_regions, aes(x = Lon_S, y = Lat_S, colour = Region_class))+
+ggplot(data = int_region, aes(x = Lon_S, y = Lat_S, colour = Region_class))+
   geom_point()+
   theme_bw()
 
-# check for bad data
-int_regions[int_regions$Lat_S == 999,]
-int_regions[int_regions$Lat_E == 999,]
 
 # change file name into transect
-int_regions$Transect <-  sub(".*/", "", int_regions$EV_filename) # remove everything before /
-int_regions$Transect <-  sub(".EV", "", int_regions$Transect)  # removes '.EV'
-int_regions <- int_regions[,c( "Date", "Time", "Interval","Lat_S","Lon_S", "Lat_E","Lon_E","Region_class", "Region_ID", "Region_name","NASC", "Transect")]
+int_region$Transect <-  sub(".*/", "", int_region$EV_filename) # remove everything before /
+int_region$Transect <-  sub(".EV", "", int_region$Transect)  # removes '.EV'
+int_region <- int_region[,c( "Date", "Time", "Interval","Lat_S","Lon_S", "Lat_E","Lon_E","Region_class", "Region_ID", "Region_name","NASC", "Transect")]
 
 # remove leading space
-int_regions$Region_class <- sub( "\\s", "" , int_regions$Region_class)
+int_region$Region_class <- sub( "\\s", "" , int_region$Region_class)
 
 
 
@@ -121,24 +114,66 @@ int_regions$Region_class <- sub( "\\s", "" , int_regions$Region_class)
 trans$Transect <- sub(".csv", "", trans$File)
 
 ## merge nasc and log with replicate info
-dim(int_regions)
-log <- merge(log, trans, by = "File")
-int_regions <- merge(int_regions, trans, by = "Transect")
-int_cells <- merge(int_cells, trans, by = "Transect")
-dim(int_regions)
+test <- nrow(int_region)
+logs <- merge(logs, trans, by = "File")
+int_region <- merge(int_region, trans, by = "Transect")
+int_cell <- merge(int_cell, trans, by = "Transect")
 
 
-# --  repeat script once for each survey or replicate or area 
-log <- log[log$Survey == 1 & log$Area == Area, ] #log$Replicate == "y",] 
-int_regions <- int_regions[int_regions$Survey == 1 &  int_regions$Area == Area, ] # int_regions$Replicate == "y",]
-int_cells <- int_cells[int_cells$Survey == 1 &  int_cells$Area == Area, ] # int_cells$Replicate == "y",]
+# check for changes in int_regions (TRUE = no change)
+test == nrow(int_region)
 
 
-#plot regions
-ggplot(data = int_regions, aes(x = Lon_S, y = Lat_S, colour = Region_class))+
-  geom_point()+
-  theme_bw()
 
+
+############################################################################
+############################################################################
+## LOOP THROUGH SURVEYS, AREAS OR REPLICATES and ESIMTATES
+
+biomass.df <- NULL
+distance.df <- NULL
+options <- c("Survey","Area1","Area2","Replicate1","Replicate2")
+con <- c("a", "b") # target strength - length regression constants
+
+for (i in options){
+
+  for (e in con){
+     
+# 1) for survey
+  if(i == "Survey")  {
+log <- logs[logs$Survey == 1,]
+int_regions <- int_region[int_region$Survey == 1,]
+int_cells <- int_cell[int_cell$Survey == 1 ,] 
+  }
+  
+# 2) for area 1
+  if(i == "Area1")  {
+log <- logs[logs$Survey == 1 & logs$Area == 1,]
+int_regions <- int_region[int_region$Survey == 1 &  int_region$Area == 1,]
+int_cells <- int_cell[int_cell$Survey == 1 &  int_cell$Area == 1, ] 
+  }
+  
+# 3) for area 2
+  if(i == "Area2")  {
+log <- logs[logs$Survey == 1 & logs$Area == 2,]
+int_regions <- int_region[int_region$Survey == 1 &  int_region$Area == 2,]
+int_cells <- int_cell[int_cell$Survey == 1 &  int_cell$Area == 2, ] 
+  }
+  
+# 4) for replicate 1
+  if(i == "Replicate1")  {
+log <- logs[log$Survey == 1 & log$Replicate == "y",]
+int_regions <- int_region[int_region$Survey == 1 &   int_region$Replicate == "y",]
+int_cells <- int_cell[int_cell$Survey == 1 &   int_cell$Replicate == "y", ] 
+  }
+  
+# 5) for replicate 2
+  if(i == "Replicate2")  {
+log <- logs[logs$Survey == 2 & logs$Replicate == "y",]
+int_regions <- int_region[int_region$Survey == 2 &   int_region$Replicate == "y",]
+int_cells <- int_cell[int_cell$Survey == 2 &   int_cell$Replicate == "y", ] 
+  }
+  
 
 
 
@@ -146,7 +181,7 @@ ggplot(data = int_regions, aes(x = Lon_S, y = Lat_S, colour = Region_class))+
 
 ##########################################################################################
 ##########################################################################################
-# species of interest
+# SPECIES 
 
 # analysis regions classes
 log$Region_class <- sub( "\\s", "" , log$Region_class)
@@ -158,40 +193,35 @@ analysis <- log[log$Region_type == " Analysis",]
 
 
 
+
+
 ##########################################################################################
 ##########################################################################################
-# Update NASC for mixed regions based on TS and catch
-
-## -- skip if there are no mixed regions
+# MIXED REGIONS
 
 
-### Calculate nasc ratio
+##### 1) Calculate ratio
                       
 # mixed regions
 mixed <- c("Hake mix")
 
 # mixed regions from log
-matched <- log[log$Region_class %in% mixed,c("Region_ID","Region_name","Region_class","File")]
-matched$File <- unlist(strsplit(matched$File, "[.]csv"))
-colnames(matched)[4] <- "Transect"
-
+matched <- log[log$Region_class %in% mixed,c("Region_ID","Region_name","Region_class","Transect")]
 
 # add matching sets
-matched$sets <- sub(".*set","",matched$Region_name) # remove everything before "set"
-matched$sets <- sub("[A-z ]*","",matched$sets) # remove leading letters and spaces
-matched$sets <- sub("-.*","",matched$sets) # remove everything after dash
-matched$sets <- sub(".*A","",matched$sets) # remove everything before A
+matched$SET <- sub(".*set","",matched$Region_name) # remove everything before "set"
+matched$SET <- sub("[A-z ]*","",matched$SET) # remove leading letters and spaces
+matched$SET <- sub("-.*","",matched$SET) # remove everything after dash
+matched$SET <- sub(".*A","",matched$SET) # remove everything before A
 
 # mean weight, length and count data for mixed sets
-mat <- morph[morph$SET %in% matched$sets,]
-
+mat <- morph[morph$SET %in% matched$SET,]
 
 # merge coeff data with mat
-mat <- merge(mat, coeff[coeff$choice == con,c(1,2,3,7)], by.x = "SPECIES_COMMON_NAME", by.y = "Region_class")
+mat <- merge(mat, coeff[coeff$choice == e,c(1,2,3,7)], by.x = "SPECIES_COMMON_NAME", by.y = "Region_class")
 
 # calculate target strength to partition nasc
 mat$TS <- mat$m * log10((mat$mean.length.mm*mat$convert)/10) + mat$b
-
 
 # calculate backscatter cross-section to partition nasc
 mat$sigma_bs <- 10 ^(mat$TS/10)
@@ -209,7 +239,7 @@ ddply(mat, .(SET), summarise, sums = sum(R))
 
 
 
-### calculate NASC based on ratio
+##### 2) Calculate NASC based on ratio
 
 # get nasc data for mixed regions only
 int_mix <- int_regions[int_regions$Region_class %in% mixed,]
@@ -221,30 +251,17 @@ int_sets <- merge(int_mix, matched, by=c("Region_ID", "Region_name", "Region_cla
 dim(int_mix)
 dim(int_sets)
 
+# partition NASC
+mix_data <- merge(int_sets, mat, by="SET")
+mix_data$Region_class <- mix_data$SPECIES_COMMON_NAME
+mix_data$NASC <- mix_data$NASC * mix_data$R
 
-# calculate percent of nasc attributed to each species in catch
-mix_data <- NULL
-for (y in unique(int_sets$sets)){
-  # partiton data by reference set
-    rat <- mat[mat$SET == y,]
-    int_s <- int_sets[int_sets$sets == y,]
-          # create table for each species of mix
-          for (z in rat$SPECIES_COMMON_NAME){
-            pdat <- int_s
-            pdat$Region_class <- z
-            pdat$NASC <- pdat$NASC * (rat$R[rat$SPECIES_COMMON_NAME == z])
-            # bind species tables together
-            mix_data <- rbind(mix_data, pdat)
-          }
-}
-
-## check - percent of NASC which remains - should be 100%
-100 - (sum(int_mix$NASC) - sum(mix_data$NASC))/sum(int_mix$NASC) *100
+## check - is 100% of NASC remaining?
+round(sum(int_mix$NASC)) == round(sum(mix_data$NASC))
 
 
 
-
-### append int_region data with partitioned regions
+##### 3) Update int_regions with new NASC 
 
 # remove mixed regions from int_regions data
 int_regions <- int_regions[!int_regions$Region_class %in% mixed,]
@@ -254,35 +271,20 @@ int_regions <- rbind(int_regions, mix_data[names(int_regions)])
 
 
 
+#### 4) Update log with new analysis regions 
 
-## Update mixed anlaysis regions in log
-
-
-# merge matched sets with analysis
+# merge analysis with matched sets and mat
 man <- merge(analysis, matched, by=c("Region_ID", "Region_name", "Region_class", "Transect"))
+mix_reg <- merge(man, mat, by="SET")
+mix_reg$Region_class <- mix_reg$SPECIES_COMMON_NAME
 
-# add new classes for mixed regions
-mix_reg <- NULL
-for (y in unique(man$sets)){
-  # partiton data by reference set
-  sp_sets <- mat[mat$SET == y,]
-  man_sets <- man[man$sets == y,]
-  # create table for each species of mix
-  for (z in sp_sets$SPECIES_COMMON_NAME){
-    pdat <- man_sets
-    pdat$Region_class <- z
-    # bind species tables together
-    mix_reg <- rbind(mix_reg, pdat)
-  }
-}
-
-## remove mixed regions from analysis
+# remove mixed regions from analysis
 analysis <- analysis[!analysis$Region_class %in% mixed,]
 
-## add partitoned regions back into  analysis
+# add partitoned regions back into  analysis
 analysis <- rbind(analysis, mix_reg[names(analysis)])
 
-## check analysis regions 
+# check analysis regions 
 table(analysis$Region_class)
 
 
@@ -334,13 +336,15 @@ distance$reg_prop <- distance$reg_dist/distance$trans_dist
 distance$trans_prop <- distance$trans_dist/total
 distance
 
-
+# distance table
+distance$loc <- i
+distance.df <- rbind(distance.df, distance)
 
 
 
 ##########################################################################################
 ##########################################################################################
-# biomass calculation for HAKE
+# HAKE BIOMASS CALCULATIONS
 
 
 # get int data for hake region classes only
@@ -365,28 +369,24 @@ morph_hake <- morph[grep("hake",morph$SPECIES_COMMON_NAME, ignore.case=T),]
 # merge hake nasc and morpho data
 him <- merge(int_hake, morph_hake, by.x = c("Region_class","SET"), by.y = c("SPECIES_COMMON_NAME", "SET"))
 
-
 ## check - should be same length
 dim(int_hake)
 dim(him)
 
 
 # merge coeff data with him
-himc <- merge(him, coeff[coeff$choice == con,c(1,2,3,7)], by = "Region_class")
+himc <- merge(him, coeff[coeff$choice == e,c(1,2,3,7)], by = "Region_class")
 
-
-# biomass calculations
-
-  # Target strength by mean length (in cm)
+# Target strength by mean length (in cm)
 himc$TS <- himc$m * log10((himc$mean.length.mm*himc$convert)/10) + himc$b
   
-  # Backscattering cross-section 
+# Backscattering cross-section 
 himc$sigma_bs <- 10 ^(himc$TS/10)
   
-  # Denisty (#/nmi^2)
+# Denisty (#/nmi^2)
 himc$density <- himc$NASC/ (4*pi*himc$sigma_bs)
   
-  # Biomass (kg/nmi^2)
+ # Biomass (kg/nmi^2)
 himc$biomass <- himc$density * (himc$mean.weight.kg)
 
 # summary
@@ -396,7 +396,7 @@ summary(himc)
 
 ##########################################################################################
 ##########################################################################################
-# biomass calculation for all other regions
+# OTHER BIOMASS CALCULATIONS
 
 # get int data for all other region classes 
 int_other <- int_regions[-(grep("hake",int_regions$Region_class, ignore.case=T)),]
@@ -412,10 +412,7 @@ dim(int_other)
 dim(oim)
 
 # merge coeff data with him
-oimc <- merge(oim, coeff[coeff$choice == con,c(1,2,3,7)], by = "Region_class")
-
-
-# biomass calculations
+oimc <- merge(oim, coeff[coeff$choice == e,c(1,2,3,7)], by = "Region_class")
 
 # Target strength by mean length (in cm)
 oimc$TS <- oimc$m * log10((oimc$weigted.mean.length.mm*oimc$convert)/10) + oimc$b
@@ -434,75 +431,78 @@ summary(oimc)
 
 
 
+
+
+
 ##########################################################################################
 ##########################################################################################
-# Average biomass 
+# JOIN BIOMASS TABLES FROM LOOPS --- END 
 
 #bind hake and other species in one table
 headers <- c("Region_class","Region_ID","Region_name","Transect","Date","Time","Interval","Lat_S","Lon_S","NASC","TS","sigma_bs","density","biomass")
 bio <- rbind(himc[headers],oimc[headers])
-assign(paste("bio", Area, sep="_"), bio)
+bio$loc <- i
+bio$estimate <- e
+
+biomass.df <- rbind(biomass.df, bio)
+
+  }
+}
+
+# check 
+head(biomass.df)
+table(biomass.df$loc)
+table(biomass.df$estimate)
+
+
+
+
+
+
+##########################################################################################
+##########################################################################################
+# BIOMASS SUMMARY 
+
+
 
 # average biomass (kg per nmi^2) per species per transect over their regions
-tmp <- ddply(bio, .(Region_class, Transect), summarise, 
+tmp <- ddply(biomass.df, .(loc, Region_class, estimate, Transect), summarise, 
              Density = mean(density),
              Biomass = mean(biomass))
 
-
 # merge with distance data
-mrg <- merge(tmp, distance, by = c("Region_class", "Transect"))
+distance.df <- distance.df[!duplicated(distance.df),]
+mrg <- merge(tmp, distance.df, by = c("loc", "Region_class", "Transect"))
 
-# corrected mean density and biomass values to account for zeros
+# average transect density and biomass (/sq nmi), weighted by region size
 mrg$Density <- mrg$Density * mrg$reg_prop
 mrg$Biomass <- mrg$Biomass * mrg$reg_prop  
 
 
-# average biomass (kg per nmi^2) per species over the survey area
-# transect density weight by transect/survey length to caluclate total density
-sums <- ddply(mrg, .(Region_class), summarise, 
+# average survey biomass (kg/sq nmi) , weighted by transect size
+avg <- ddply(mrg, .(loc, Region_class, estimate), summarise, 
               Density.sqnmi = sum(Density * trans_prop),
               Biomass.kg.sqnmi = sum(Biomass * trans_prop))
-sums$Estimate <- con
-#sums$Replicate <- reps
-sums$Area <- Area
 
 
-# scale up biomass to area of interest
-# area of survey (spatial extent) 
-# for Hake 2015 = 30,700 
-# survey 1, Area 1 = 7,300
-# survey 1, Area 2 = 22,300
+# scale up biomass to area of interest (spatial extent) 
+# Survey = 30,700 
+# Area 1 = 7,300
+# Area 2 = 22,300
 # for replicates = 5,900
-sums$Area.Biomass.kg <- round(sums$Biomass.kg.sqnmi[sums$Area == 1] * 7300)
-sums$Area.Biomass.kg <- round(sums$Biomass.kg.sqnmi[sums$Area == 2] * 22300)
-#sums$Area.Biomass.kg <- round(sums$Biomass.kg.sqnmi * 5900)
+avg$Area.Biomass.kg <- NA
+avg$Area.Biomass.kg[avg$loc == "Survey"] <- avg$Biomass.kg.sqnmi[avg$loc == "Survey"] * 30700
+avg$Area.Biomass.kg[avg$loc == "Area1"] <- avg$Biomass.kg.sqnmi[avg$loc == "Area1"] * 7300
+avg$Area.Biomass.kg[avg$loc == "Area2"] <- avg$Biomass.kg.sqnmi[avg$loc == "Area2"] * 22300
+avg$Area.Biomass.kg[avg$loc == "Replicate1"] <- avg$Biomass.kg.sqnmi[avg$loc == "Replicate1"] * 5900
+avg$Area.Biomass.kg[avg$loc == "Replicate2"] <- avg$Biomass.kg.sqnmi[avg$loc == "Replicate2"] * 5900
 
-
-
-
-# average biomass (kg per nmi^2) per species over the survey area 
-assign(paste("avg", con, Area, sep="_"), sums)
-get(paste("avg", con, Area, sep="_"))
-
-
-
-
-
-# ---------------------------------------------------------------------#
-# RERUN script with other estimates 
-
-# bind density and biomass from difference estimates
-avg <- rbind(avg_a_1,avg_a_2, avg_b_1, avg_b_2)
-avg <- avg[order(avg$Region_class),]
 avg
 
-# add total biomass from both Areas
-tot <- ddply(avg, .(Region_class, Estimate), summarise, Total.Biomass.T = sum(Area.Biomass.kg/1000))
 
-# exports
-#write.csv(avg, file = "Other data/Fishing/Biomass_Replicate.csv")
-write.csv(avg, file = "Other data/Fishing/Biomass_Survey.csv")
-write.csv(tot, file = "Other data/Fishing/BiomassTotals_Survey.csv")
+
+#######  export #######
+write.csv(avg, file = "Other data/Fishing/Biomass.csv")
 
 
 
@@ -511,11 +511,12 @@ write.csv(tot, file = "Other data/Fishing/BiomassTotals_Survey.csv")
 
 ##########################################################################################
 ##########################################################################################
-# Map biomass 
+# BIOMASS MAPS
 
-bio <- rbind(bio_1,bio_2)
-bio$Replicate <- c(rep(1,nrow(bio_1)), rep(2,nrow(bio_2)))
-             
+#data
+bio.survey <- biomass.df[biomass.df$loc == "Survey",]
+bio.rep <- biomass.df[biomass.df$loc %in%  c("Replicate1","Replicate2"),]
+
 #land Polygon
 data(nepacLL)
 lp<-data.frame(nepacLL)
@@ -528,19 +529,57 @@ leg <- ifelse(lg > length(cols), length(cols), lg)
 pal <- colorRampPalette(cols[1:leg],space = c("rgb"),interpolate = c("spline"))(lg)
 
 
-# map biomass
-biomap <- ggplot(data = NULL) +
+# survey map
+surmap <- ggplot(data = NULL) +
   geom_polygon(data = lp, aes(x = X, y = Y, group=PID), 
                fill = "gray80", colour = "gray60", size = .1) +
-  geom_point(data = bio, aes(x = Lon_S, y = Lat_S, colour=Region_class, size = biomass), pch = 20, alpha=.7) +
-  #facet_wrap(~Replicate, ncol=2) +
-  scale_size_area(max_size = 16, name = "Biomass")+
-  scale_colour_manual(values=pal) +
+  geom_point(data = bio.survey[bio.survey$estimate == "a",], 
+             aes(x = Lon_S, y = Lat_S, colour=Region_class, fill=Region_class, size = biomass/1000), 
+             pch = 21, alpha=.6) +
+  scale_size_area(max_size = 12, name = "Biomass (T)")+
+  scale_colour_manual(values=pal, name = "") +
+  scale_fill_manual(values=pal, name = "") +
   guides(colour = guide_legend(override.aes = list(size=4)))+
   labs(x = "Longitude", y = "Latitude") +
-  coord_map(xlim = c(min(bio$Lon_S)-.2, max(bio$Lon_S)+.2), 
-            ylim = c(min(bio$Lat_S)-.2, max(bio$Lat_S)+.2)) +
-  guides(colour = guide_legend(override.aes = list(size=4)))+
+  coord_map(xlim = c(min(bio.survey$Lon_S)-.2, max(bio.survey$Lon_S)+.2), 
+            ylim = c(min(bio.survey$Lat_S)-.2, max(bio.survey$Lat_S)+.2)) +
+  theme(panel.border = element_rect(fill=NA, colour="black"),
+        panel.background = element_rect(fill="white",colour="black"),
+        axis.ticks = element_line(colour="black"),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        axis.ticks.length = unit(0.1,"cm"),
+        axis.text = element_text(size=10, colour = "black"),
+        axis.title = element_text(size=11),
+        legend.text = element_text(size=11),
+        legend.title = element_text(size=12, face="plain"),
+        legend.background = element_blank(), legend.key = element_blank(),
+        legend.key.height = unit(.5,"cm"), legend.key.width = unit(.4,"cm"),
+        legend.justification = c(1,1), legend.position = "right", 
+        plot.margin = unit(c(.5,.5,.5,.5), "lines")) # top, right, bottom, and left 
+
+surmap
+pdf("Other data/Figures/BiomassMap_Survey.pdf", width = 9, height = 8)
+surmap
+dev.off()
+
+
+
+# replicate map
+repmap <- ggplot(data = NULL) +
+  geom_polygon(data = lp, aes(x = X, y = Y, group=PID), 
+               fill = "gray80", colour = "gray60", size = .1) +
+  geom_point(data = bio.rep[bio.rep$estimate == "a",], 
+             aes(x = Lon_S, y = Lat_S, colour=Region_class, fill=Region_class, size = biomass/1000), 
+             pch = 21, alpha=.6) +
+  facet_wrap(~loc, ncol=2) +
+  scale_size_area(max_size = 25, name = "Biomass (T)")+
+  scale_colour_manual(values=pal, name = "") +
+  scale_fill_manual(values=pal, name = "") +
+  guides(colour = guide_legend(override.aes = list(size=4), ncol=1))+
+  labs(x = "Longitude", y = "Latitude") +
+  coord_map(xlim = c(min(bio.rep$Lon_S)-.2, max(bio.rep$Lon_S)+.2), 
+            ylim = c(min(bio.rep$Lat_S)-.2, max(bio.rep$Lat_S)+.2)) +
   theme(panel.border = element_rect(fill=NA, colour="black"),
         panel.background = element_rect(fill="white",colour="black"),
         strip.background = element_blank(),
@@ -554,29 +593,47 @@ biomap <- ggplot(data = NULL) +
         legend.title = element_text(size=12, face="plain"),
         legend.background = element_blank(), legend.key = element_blank(),
         legend.key.height = unit(.5,"cm"), legend.key.width = unit(.4,"cm"),
-        legend.justification = c(1,1), legend.position = "right", 
-        #legend.justification = c(.5,.5), legend.position = "bottom", legend.box = "horizontal",
+        legend.justification = c(.5,.5), legend.position = "bottom", legend.box = "horizontal",
         plot.margin = unit(c(.5,.5,.5,.5), "lines")) # top, right, bottom, and left 
 
-biomap
-pdf("Other data/Figures/BiomassMap_Survey.pdf", width = 9, height = 8)
-#pdf("Other data/Figures/BiomassMap_Replicate.pdf", width = 15, height = 8)
-biomap
+repmap
+pdf("Other data/Figures/BiomassMap_Replicate.pdf", width = 15, height = 8)
+repmap
 dev.off()
 
 
 
-###################################################################################
-# plot biomass comparison
+##########################################################################################
+##########################################################################################
+# COMPARE TOTAL BIOMASS
 
-comp_est <- ggplot(data = tot) + 
-  geom_bar(aes(x = Region_class, y = Total.Biomass.T, group = Estimate, fill = Region_class),
+
+
+# data
+area <- avg[avg$loc == "Area1" | avg$loc == "Area2",]
+areas <- ddply(area, .(Region_class, estimate), summarise,
+               Density.sqnmi = mean(Density.sqnmi),
+               Biomass.kg.sqnmi = mean(Biomass.kg.sqnmi),
+               Area.Biomass.kg = sum(Area.Biomass.kg))
+areas$loc <- "Areas"
+survey <- avg[avg$loc == "Survey",]
+areas <- rbind(areas, survey)
+areas <- areas[areas$estimate == "a",]
+
+replicates <- avg[avg$loc == "Replicate1" | avg$loc == "Replicate2",]
+replicates <- replicates[replicates$estimate == "a",]
+
+
+# estimates plot
+comp_est <- ggplot(data = survey) + 
+  geom_bar(aes(x = Region_class, y = Area.Biomass.kg/1000, group = estimate, fill = Region_class),
            stat= "identity", position = "dodge", colour = "black", size = .1) +
-  geom_text(aes(x=Region_class, y = Total.Biomass.T, group = Estimate, label = Estimate), 
+  geom_text(aes(x=Region_class, y = Area.Biomass.kg/1000, group = estimate, label = estimate), 
             position = position_dodge(width=1), size = 3, vjust = -.3) +
-  labs(x="", y=" Total Biomass (mT)") +
+  labs(x="", y=" Total Biomass (T)") +
   scale_fill_manual(values = pal, guide="none") +
-  scale_y_continuous(label=comma, expand =c(0,0), limit= c(0,1560000))+
+  scale_y_continuous(label=comma, expand =c(0,0), 
+                     limit= c(0,max(survey$Area.Biomass.kg/1000)*1.05))+
   # themes
   theme(panel.border = element_rect(fill=NA, colour="black", size = .1),
         panel.background = element_rect(fill="white",colour="white"),
@@ -585,23 +642,25 @@ comp_est <- ggplot(data = tot) +
         axis.ticks.length = unit(0.1,"cm"),
         panel.grid.major = element_blank(),
         panel.grid.minor = element_blank(),
-        axis.text = element_text(size=10, colour = "black"),
-        axis.title = element_text(size=11, colour = "black"),
+        axis.text = element_text(size=8, colour = "black"),
+        axis.title = element_text(size=9, colour = "black"),
         plot.margin = unit(c(.2,.2,.2,.2), "lines")) # top, right, bottom, and left
-pdf("Other data/Figures/Biomass_Estimates.pdf", width = 8, height = 5)
+comp_est
+pdf("Other data/Figures/Biomass_Estimates.pdf", width = 6, height = 4)
 comp_est
 dev.off()
 
 
-
-comp_rep <- ggplot(data = avg) + 
-  geom_bar(aes(x = Region_class, y = Area.Biomass.kg/1000, group = Replicate, fill = Region_class),
+# replicate plot
+comp_rep <- ggplot(data = replicates) + 
+  geom_bar(aes(x = Region_class, y = Area.Biomass.kg/1000, group = loc, fill = Region_class),
            stat= "identity", position = "dodge", colour = "black", size = .1) +
-  geom_text(aes(x=Region_class, y = Area.Biomass.kg/1000, group = Replicate, label = Replicate), 
-            position = position_dodge(width=1), size = 3, vjust = -.3) +
-  labs(x="", y=" Total Biomass (mT)") +
+  geom_text(aes(x=Region_class, y = Area.Biomass.kg/1000, group = loc, label = loc), 
+            position = position_dodge(width=.9), size = 2.5, vjust = -.3) +
+  labs(x="", y=" Total Biomass (T)") +
   scale_fill_manual(values = pal, guide="none") +
-  scale_y_continuous(label=comma, expand =c(0,0), limit= c(0,1560000))+
+  scale_y_continuous(label=comma, expand =c(0,0), 
+                     limit= c(0,max(replicates$Area.Biomass.kg/1000)*1.05))+
   # themes
   theme(panel.border = element_rect(fill=NA, colour="black", size = .1),
         panel.background = element_rect(fill="white",colour="white"),
@@ -610,11 +669,38 @@ comp_rep <- ggplot(data = avg) +
         axis.ticks.length = unit(0.1,"cm"),
         panel.grid.major = element_blank(),
         panel.grid.minor = element_blank(),
-        axis.text = element_text(size=10, colour = "black"),
-        axis.title = element_text(size=11, colour = "black"),
+        axis.text = element_text(size=8, colour = "black"),
+        axis.title = element_text(size=9, colour = "black"),
         plot.margin = unit(c(.2,.2,.2,.2), "lines")) # top, right, bottom, and left
-pdf("Other data/Figures/Biomass_Replicates.pdf", width = 8, height = 5)
+comp_rep
+pdf("Other data/Figures/Biomass_Replicates.pdf", width = 6, height = 4)
 comp_rep
 dev.off()
 
 
+
+# area plot
+comp_area <- ggplot(data = areas) + 
+  geom_bar(aes(x = Region_class, y = Area.Biomass.kg/1000, group = loc, fill = Region_class),
+           stat= "identity", position = "dodge", colour = "black", size = .1) +
+  geom_text(aes(x=Region_class, y = Area.Biomass.kg/1000, group = loc, label = loc), 
+            position = position_dodge(width=.9), size = 2.5, vjust = -.3) +
+  labs(x="", y=" Total Biomass (T)") +
+  scale_fill_manual(values = pal, guide="none") +
+  scale_y_continuous(label=comma, expand =c(0,0), 
+                     limit= c(0,max(areas$Area.Biomass.kg/1000)*1.05))+
+  # themes
+  theme(panel.border = element_rect(fill=NA, colour="black", size = .1),
+        panel.background = element_rect(fill="white",colour="white"),
+        strip.background = element_blank(),
+        axis.ticks = element_line(colour="black"),
+        axis.ticks.length = unit(0.1,"cm"),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        axis.text = element_text(size=8, colour = "black"),
+        axis.title = element_text(size=9, colour = "black"),
+        plot.margin = unit(c(.2,.2,.2,.2), "lines")) # top, right, bottom, and left
+comp_area
+pdf("Other data/Figures/Biomass_Survey.pdf", width = 6, height = 4)
+comp_area
+dev.off()
