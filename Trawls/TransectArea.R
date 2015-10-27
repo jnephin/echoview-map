@@ -23,7 +23,7 @@ nasc <- read.csv("Acoustics/Echoview/Exports/Sv raw pings T2/IntegratedByCells.c
                        stringsAsFactors = FALSE, row.names = 1)
 
 # load survey data
-trans <- read.csv("Other data/Fishing/transects.csv", header=T, stringsAsFactors = FALSE)
+trans <- read.csv("Other data/Catch data/transects.csv", header=T, stringsAsFactors = FALSE)
 
 
 # projection string

@@ -7,11 +7,11 @@ if(length(new.packages)) install.packages(new.packages, repos = "http://cran.sta
 
 ###################################################################################
 # load source files
-source("EchoviewR/Map/Code/RegionNames.R")
-source("EchoviewR/Map/Code/MapInput.R")
+source("Rscripts/Map/Code/RegionNames.R")
+source("Rscripts/Map/Code/MapInput.R")
 
 #load analysis region names
-species.names <- dget("EchoviewR/Map/Layers/Species")
+species.names <- dget("Rscripts/Map/Layers/Species")
 
 # create Maps directory if necessary
 Mapdir <- "Other data/Figures"

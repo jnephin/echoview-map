@@ -7,22 +7,22 @@ require(plyr)
 setwd('..');setwd('..')
 
 # load morpho data
-morpho <- read.csv("Other data/Fishing/morpho.csv", header=T, stringsAsFactors = FALSE)
+morpho <- read.csv("Other data/Catch data/morpho.csv", header=T, stringsAsFactors = FALSE)
 colnames(morpho)[3] <- "SET"
 
 # load catch data for lat long
-catch <- read.csv("Other data/Fishing/catch.csv", header=T, stringsAsFactors = FALSE)
+catch <- read.csv("Other data/Catch data/catch.csv", header=T, stringsAsFactors = FALSE)
 catch <- catch[!is.na(catch$CATCH_WEIGHT),]
 colnames(catch)[4] <- "SET"
 
 # load echoview log
-log <- read.csv("Other data/Log/Cruiselog.csv", header=T, stringsAsFactors = FALSE, row.names=1)
+log <- read.csv("Acoustics/Echoview/Exports/Log/Cruiselog.csv", header=T, stringsAsFactors = FALSE, row.names=1)
 
 # load length weight regression coefficients
-coeff_LW <- read.csv("EchoviewR/Trawls/LW_coefficients.csv", header=T, stringsAsFactors = FALSE)
+coeff_LW <- read.csv("Rscripts/Trawls/LW_coefficients.csv", header=T, stringsAsFactors = FALSE)
 
 # load target strength coefficients
-coeff_TS <- read.csv("EchoviewR/Trawls/TS_coefficients.csv", header=T, stringsAsFactors = FALSE)
+coeff_TS <- read.csv("Rscripts/Trawls/TS_coefficients.csv", header=T, stringsAsFactors = FALSE)
 
 
 
@@ -333,7 +333,7 @@ morph_sum <- ddply(comb, .(SPECIES_COMMON_NAME), summarise,
 morph_sum
 
 # export
-write.csv(morph_sum, file = "Other data/Fishing/morpho_summary.csv")
+write.csv(morph_sum, file = "Other data/Catch data/morpho_summary.csv")
 
 
 
@@ -372,7 +372,7 @@ morph_count$Estimated_N <- round(morph_count$total.weight.kg/morph_count$mean.we
 morph_count
 
 # export summary
-write.csv(morph_count, file = "Other data/Fishing/morpho_counts.csv")
+write.csv(morph_count, file = "Other data/Catch data/morpho_counts.csv")
 
 
 

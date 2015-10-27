@@ -4,7 +4,7 @@
 setwd('..');setwd('..')
 
 # load code 
-source("EchoviewR/Map/Code/Interactive.R")
+source("Rscripts/Map/Code/Interactive.R")
 
 
 

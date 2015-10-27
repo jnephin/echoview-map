@@ -34,7 +34,7 @@ ld<-data.frame(landT)
 #------ Bathymetry --------#
 
 if (dataset == "Pacific") {
-  load("EchoviewR/Map/Layers/NPObathy.rda")
+  load("Rscripts/Map/Layers/NPObathy.rda")
   isobath <- NPObathy
   isobath$z <- isobath$z * -1 
 } else{
@@ -101,7 +101,7 @@ ocean <- colorRampPalette(ocean.cols)(length(isobs))
 
 ############################
 #-------- Citites ---------#
-cities <- read.csv("EchoviewR/Map/Layers/Cities.csv", header=T)
+cities <- read.csv("Rscripts/Map/Layers/Cities.csv", header=T)
 cities <- as.EventData(cities, projection="LL")
 ct <- data.frame(cities)
 
@@ -110,14 +110,14 @@ ct <- data.frame(cities)
 #-------- CRUISE TRACK ---------#
 
 #Load the slim cruise track file. If it doesn't exist, create one.
-if (file.exists("Other data/GPSTrack/SlimCruiseTrack.csv")) {
-  track <- read.csv("Other data/GPSTrack/SlimCruiseTrack.csv", header=T, row.names=1, stringsAsFactors = FALSE)
- } else if (file.exists("Other data/GPSTrack/CruiseTrack.csv")) {
-   tracks <- read.csv("Other data/GPSTrack/CruiseTrack.csv", header=T, row.names=1,stringsAsFactors = FALSE)[,-7]
+if (file.exists("Acoustics/Echoview/Exports/GPSTrack/SlimCruiseTrack.csv")) {
+  track <- read.csv("Acoustics/Echoview/Exports/GPSTrack/SlimCruiseTrack.csv", header=T, row.names=1, stringsAsFactors = FALSE)
+ } else if (file.exists("Acoustics/Echoview/Exports/GPSTrack/CruiseTrack.csv")) {
+   tracks <- read.csv("Acoustics/Echoview/Exports/GPSTrack/CruiseTrack.csv", header=T, row.names=1,stringsAsFactors = FALSE)[,-7]
    track <-tracks[(seq(1,to=nrow(tracks),by=100)),] #keep 1 in every 100 records to slim dataset
-   write.csv(track, "Other data/GPSTrack/SlimCruiseTrack.csv")
+   write.csv(track, "Acoustics/Echoview/Exports/GPSTrack/SlimCruiseTrack.csv")
  } else {
-  stop("No CruiseTrack.csv found in '", file.path(getwd(), "Other data/GPSTrack"), "' directory")
+  stop("No CruiseTrack.csv found in '", file.path(getwd(), "Acoustics/Echoview/Exports/GPSTrack"), "' directory")
  }
 
 #dates by day
@@ -156,7 +156,7 @@ int_cells <- int_cells[!int_cells$Lat_S == 999,]
 #################################
 #-------- CRUISE LOG ---------#
 
-cruiselog <- read.csv("Other data/Log/CruiseLog.csv", header=T, stringsAsFactors = FALSE)
+cruiselog <- read.csv("Acoustics/Echoview/Exports/Log/CruiseLog.csv", header=T, stringsAsFactors = FALSE)
 Log <- cruiselog[cruiselog$Region_type == " Marker",]
 
 

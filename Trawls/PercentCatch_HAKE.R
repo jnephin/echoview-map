@@ -9,14 +9,14 @@ require(plyr)
 setwd('..'); setwd('..')
 
 # load catch data
-catch <- read.csv("Other data/Fishing/catch.csv", header=T, stringsAsFactors = FALSE)
-reps <- read.csv("Other data/Fishing/replicates.csv", header=T, stringsAsFactors = FALSE)
+catch <- read.csv("Other data/Catch data/catch.csv", header=T, stringsAsFactors = FALSE)
+reps <- read.csv("Other data/Catch data/replicates.csv", header=T, stringsAsFactors = FALSE)
 
 
 # load cruise log
-log <- read.csv("Other data/Log/Cruiselog.csv", header=T, stringsAsFactors = FALSE, row.names=1)
+log <- read.csv("Acoustics/Echoview/Exports/Log/Cruiselog.csv", header=T, stringsAsFactors = FALSE, row.names=1)
 log <- log[!(log$Lat_s == 999),]
-trans <- read.csv("Other data/Fishing/transects.csv", header=T, stringsAsFactors = FALSE)
+trans <- read.csv("Other data/Catch data/transects.csv", header=T, stringsAsFactors = FALSE)
 
 
 
@@ -39,7 +39,7 @@ log <- merge(log, trans, by = "File")
 
 # export summary
 catch_summ <- catch[c("SET","SPECIES_COMMON_NAME","SPECIES_SCIENCE_NAME", "CATCH_WEIGHT","PERCENT", "Survey")]
-write.csv(catch_summ, file = "Other data/Fishing/catch_summary.csv")
+write.csv(catch_summ, file = "Other data/Catch data/catch_summary.csv")
 
 
 

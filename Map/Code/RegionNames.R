@@ -1,5 +1,5 @@
 
-path <- "Other data/Log"
+path <- "Acoustics/Echoview/Exports/Log"
 
 #read in cruise log
 if (file.exists(file.path(getwd(), path, "CruiseLog.csv"))) {
@@ -15,6 +15,6 @@ region <- cruiselog[cruiselog$Region_type == " Analysis", c("Region_class", "Dat
 reg <- region[!duplicated(region$Region_class),]
 #output region classes for shiny ui
 reg.names <- reg$Region_class
-dput(reg.names, file="EchoviewR/Map/Layers/Species")
+dput(reg.names, file="Rscripts/Map/Layers/Species")
 
 

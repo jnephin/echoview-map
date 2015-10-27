@@ -14,11 +14,11 @@ setwd('..');setwd('..')
 # load data
 
 # load mean lengths and weight per species
-summs <- read.csv("Other data/Fishing/morpho_summary.csv", header=T, stringsAsFactors = FALSE, 
+summs <- read.csv("Other data/Catch data/morpho_summary.csv", header=T, stringsAsFactors = FALSE, 
                   row.names = 1)
 
 # load mean lengths, weights and counts per set per species
-morph <- read.csv("Other data/Fishing/morpho_counts.csv", header=T, stringsAsFactors = FALSE, 
+morph <- read.csv("Other data/Catch data/morpho_counts.csv", header=T, stringsAsFactors = FALSE, 
                   row.names = 1)
 
 # load backscatter data
@@ -28,11 +28,11 @@ nasc_cells <- read.csv("Acoustics/Echoview/Exports/Sv raw pings T2/IntegratedByC
                        stringsAsFactors = FALSE, row.names = 1)
 
 # load echoview log
-logs <- read.csv("Other data/Log/Cruiselog.csv", header=T, stringsAsFactors = FALSE, row.names=1)
+logs <- read.csv("Acoustics/Echoview/Exports/Log/Cruiselog.csv", header=T, stringsAsFactors = FALSE, row.names=1)
 colnames(logs)[1] <- "Region_ID"
 
 # load target strength coefficients
-coeff <- read.csv("EchoviewR/Trawls/TS_coefficients.csv", header=T, stringsAsFactors = FALSE)
+coeff <- read.csv("Rscripts/Trawls/TS_coefficients.csv", header=T, stringsAsFactors = FALSE)
 
 
 
@@ -426,7 +426,7 @@ avg
 
 
 #######  export #######
-write.csv(avg, file = "Other data/Fishing/Biomass.csv")
+write.csv(avg, file = "Other data/Catch data/Biomass.csv")
 
 
 
