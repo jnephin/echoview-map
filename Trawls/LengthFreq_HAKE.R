@@ -289,9 +289,22 @@ print(mapmean)
 # group rockfish catch together
 rock <- grep("rockfish|perch", catch$SPECIES_COMMON_NAME, ignore.case=T)
 r_catch <- catch[rock,c("SET", "SPECIES_COMMON_NAME", "CATCH_WEIGHT")]
-wr_catch <- catch[-rock,c("SET", "SPECIES_COMMON_NAME", "CATCH_WEIGHT")]
 rs_catch <- ddply(r_catch, .(SET), transform, CATCH_WEIGHT = sum(CATCH_WEIGHT))
-grp_catch <- rbind(wr_catch,rs_catch)
+
+# group salmon catch together
+salmon <- grep("COHO SALMON|CHUM SALMON|CHINOOK SALMON|PINK SALMON|SOCKEYE SALMON", catch$SPECIES_COMMON_NAME, ignore.case=T)
+s_catch <- catch[salmon,c("SET", "SPECIES_COMMON_NAME", "CATCH_WEIGHT")]
+ss_catch <- ddply(s_catch, .(SET), transform, CATCH_WEIGHT = sum(CATCH_WEIGHT))
+
+
+# group myctophid catch together
+myctophid <- grep("myctophid|lampfish|headlight", catch$SPECIES_COMMON_NAME, ignore.case=T)
+m_catch <- catch[myctophid,c("SET", "SPECIES_COMMON_NAME", "CATCH_WEIGHT")]
+sm_catch <- ddply(m_catch, .(SET), transform, CATCH_WEIGHT = sum(CATCH_WEIGHT))
+
+
+w_catch <- catch[-c(rock,salmon,myctophid),c("SET", "SPECIES_COMMON_NAME", "CATCH_WEIGHT")]
+grp_catch <- rbind(w_catch,rs_catch, ss_catch, sm_catch)
 
 # merge catch and morpho
 comb <- merge(morpho, grp_catch[c("SET", "SPECIES_COMMON_NAME", "CATCH_WEIGHT")], 
@@ -310,7 +323,6 @@ comb$SPECIES_COMMON_NAME[comb$SPECIES_COMMON_NAME == "PACIFIC HAKE" &
                     comb$SPECIMEN_MORPHOMETRICS_VALUE < cutoff  ] <- "Age-1 Hake"
 comb$SPECIES_COMMON_NAME[grep("herring", comb$SPECIES_COMMON_NAME, ignore.case=T)] <- "Herring"
 comb$SPECIES_COMMON_NAME[grep("rockfish|perch", comb$SPECIES_COMMON_NAME, ignore.case=T)] <- "Rockfish"
-comb$SPECIES_COMMON_NAME[grep("sardine", comb$SPECIES_COMMON_NAME, ignore.case=T)] <- "Sardine"
 comb$SPECIES_COMMON_NAME[grep("myctophid|lampfish|headlight", comb$SPECIES_COMMON_NAME, ignore.case=T)] <- "Myctophids"
 comb$SPECIES_COMMON_NAME[grep("cps|sardine", comb$SPECIES_COMMON_NAME, ignore.case=T)] <- "CPS"
 comb$SPECIES_COMMON_NAME[grep("mackerel", comb$SPECIES_COMMON_NAME, ignore.case=T)] <- "Mackerel"
@@ -367,26 +379,13 @@ morph_count <- ddply(comb, .(SET, SPECIES_COMMON_NAME), summarise,
                      mean.weight.kg = mean(WEIGHT, na.rm=T)/1000,
                      total.weight.kg = min(CATCH_WEIGHT))
 
-#merge catch and mean length data
+# merge catch and mean length data
 morph_count$Estimated_N <- round(morph_count$total.weight.kg/morph_count$mean.weight.kg)
 morph_count
 
+
 # export summary
 write.csv(morph_count, file = "Other data/Catch data/morpho_counts.csv")
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 

@@ -456,8 +456,11 @@ table(biomass.df$estimate)
 
 
 # check
-ddply(int_region, .(Replicate,Region_class), summarise, n = length(Region_class))
+ddply(int_region, .(Survey, Area, Region_class), summarise, n = length(Region_class))
 ddply(biomass.df[biomass.df$estimate == "a",], .(loc,Region_class), summarise, n = length(Region_class))
+
+
+
 
 
 

@@ -36,7 +36,7 @@ set.xy <- sdlog[c("SET","Lat_s","Lon_s", "Replicate")]
 
 # check --are all the sets present in the echoview log?
 sort(unique(as.numeric(sdlog$SET)))
-unique(morpho$SET)
+sort(unique(morpho$SET))
 
 # subset morpho data so that it only contains log sets
 morpho <- merge(morpho, set.xy[c("SET","Replicate")], by = "SET")
@@ -224,9 +224,23 @@ print(mapmean)
 # group rockfish catch together
 rock <- grep("rockfish|perch", catch$SPECIES_DESC, ignore.case=T)
 r_catch <- catch[rock,c("SET", "SPECIES_DESC", "CATCH_WEIGHT")]
-wr_catch <- catch[-rock,c("SET", "SPECIES_DESC", "CATCH_WEIGHT")]
 rs_catch <- ddply(r_catch, .(SET), transform, CATCH_WEIGHT = sum(CATCH_WEIGHT))
-grp_catch <- rbind(wr_catch,rs_catch)
+
+# group salmon catch together
+salmon <- grep("COHO SALMON|CHUM SALMON|CHINOOK SALMON|PINK SALMON|SOCKEYE SALMON", catch$SPECIES_DESC, ignore.case=T)
+s_catch <- catch[salmon,c("SET", "SPECIES_DESC", "CATCH_WEIGHT")]
+ss_catch <- ddply(s_catch, .(SET), transform, CATCH_WEIGHT = sum(CATCH_WEIGHT))
+
+
+# group myctophid catch together
+myctophid <- grep("myctophid|lampfish|headlight", catch$SPECIES_DESC, ignore.case=T)
+m_catch <- catch[myctophid,c("SET", "SPECIES_DESC", "CATCH_WEIGHT")]
+sm_catch <- ddply(m_catch, .(SET), transform, CATCH_WEIGHT = sum(CATCH_WEIGHT))
+
+
+w_catch <- catch[-c(rock,salmon,myctophid),c("SET", "SPECIES_DESC", "CATCH_WEIGHT")]
+grp_catch <- rbind(w_catch,rs_catch, ss_catch, sm_catch)
+
 
 # merge catch and morpho
 comb <- merge(morpho, grp_catch[c("SET", "SPECIES_DESC", "CATCH_WEIGHT")], 
