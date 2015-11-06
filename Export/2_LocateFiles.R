@@ -46,9 +46,9 @@ for (i in EVfile.list){
   evPropObj[["DataPaths"]]$Add(file.path(getwd(), RAWdir))
   
   
-  #set fileset object
+  #set the first fileset object 
   filesetObj <- EVfile[["Filesets"]]$Item(0)
- 
+  
   # set calibration file
   add.calibration <- filesetObj$SetCalibrationFile(CALfileName)
   

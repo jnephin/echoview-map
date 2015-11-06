@@ -12,7 +12,7 @@ setwd('..'); setwd('..')
 EVdir <- "Acoustics/Echoview/Transects"
 
 #location of calibration file (.ecs)
-CALdir <- "Other data"
+CALdir <- "Acoustics/Echoview"
 
 #location of .raw files
 RAWdir <- "Acoustics/RAW"
@@ -25,13 +25,17 @@ RAWdir <- "Acoustics/RAW"
 EXPdir <- "Acoustics/Echoview/Exports"
 dir.create(file.path(getwd(), EXPdir))
 
-#location to put gps track files
+#location to place gps track files
 GPSdir <- "Acoustics/Echoview/Exports/GPSTrack"
 dir.create(file.path(getwd(), GPSdir))
 
-#location to put log files
+#location to place log files
 LOGdir <- "Acoustics/Echoview/Exports/Log"
 dir.create(file.path(getwd(), LOGdir))
+
+#location to place figures
+FIGdir <- "Other data/Figures"
+dir.create(file.path(getwd(), FIGdir))
 
 
 ###--------------------------------------------####
