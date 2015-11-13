@@ -6,56 +6,68 @@ require(chron)
 source("1_Paths.R")
 
 
+for (j in 1:2){
+  
+  ###############################################
+  #           Load in file names                #
+  ###############################################
+  # list .raw files
+  RAWfile.list <- list.files(file.path(getwd(), RAWdir), pattern="*.raw$")
 
-
-###############################################
-#           Load in file names                #
-###############################################
-# list .raw files
-RAWfile.list <- list.files(file.path(getwd(), RAWdir), pattern="*.raw$")
-RAWfileNames <- file.path(getwd(), RAWdir, RAWfile.list)
-
-
-
-###############################################
-#              RUN in Echoview                #
-###############################################
-
-# create COM connection between R and Echoview
-EVApp <- COMCreate("EchoviewCom.EvApplication")
-
-#create new EV file
-EVfile <- EVApp$NewFile()
-
-#set fileset object
-filesetObj <- EVfile[["Filesets"]]$Item(0)
-
-#add data
-for (i in RAWfileNames){
-  filesetObj[["DataFiles"]]$Add(i)
+  a <- 1
+  b <-  round(length(RAWfile.list)/2)
+  d <- b+1
+  e <- length(RAWfile.list)
+  
+  if (j == 1){
+    RAWfileNames <- file.path(getwd(), RAWdir, RAWfile.list)[a:b]
+  }
+  
+  if (j == 2){
+    RAWfileNames <- file.path(getwd(), RAWdir, RAWfile.list)[d:e]
+  }
+  
+  
+  ###############################################
+  #              RUN in Echoview                #
+  ###############################################
+  
+  # create COM connection between R and Echoview
+  EVApp <- COMCreate("EchoviewCom.EvApplication")
+  
+  #create new EV file
+  EVfile <- EVApp$NewFile()
+  
+  #set fileset object
+  filesetObj <- EVfile[["Filesets"]]$Item(0)
+  
+  #add data
+  for (i in RAWfileNames){
+    filesetObj[["DataFiles"]]$Add(i)
+  }
+  
+  
+  #set EvVariable object
+  evVarObj <- EVfile[["Variables"]]
+  evVarObj$FindByName("Sv raw pings T2") # force echoview to wait for raw files to upload
+  
+  #get the gps fixes variable
+  gpsfix <- evVarObj$FindByName("position GPS fixes")
+  
+  #export cruise track
+  cruisetrack <- paste("CruiseTrack_", j, ".csv", sep="")
+  gpsfix$ExportData(file.path(getwd(), GPSdir, cruisetrack))
+  
+  #close EV file
+  EVApp$CloseFile(EVfile)
+  
+  
+  ##########################################
+  #quit echoview
+  EVApp$Quit()
+  
+  
 }
-
-
-#set EvVariable object
-evVarObj <- EVfile[["Variables"]]
-evVarObj$FindByName("Sv raw pings T2") # force echoview to wait for raw files to upload
-
-#get the gps fixes variable
-gpsfix <- evVarObj$FindByName("position GPS fixes")
-
-#export cruise track
-gpsfix$ExportData(file.path(getwd(), GPSdir, "CruiseTrack.csv"))
-
-#close EV file
-EVApp$CloseFile(EVfile)
-
-
-##########################################
-#quit echoview
-EVApp$Quit()
-
-
-
 
 
 
@@ -66,11 +78,13 @@ EVApp$Quit()
 
 
 
-## Load cruise track
+## Load and merge cruise track
 if (file.exists("Acoustics/Echoview/Exports/GPSTrack/SlimCruiseTrack.csv")) {
   track <- read.csv("Acoustics/Echoview/Exports/GPSTrack/SlimCruiseTrack.csv", header=T, row.names=1, stringsAsFactors = FALSE)
-} else if (file.exists("Acoustics/Echoview/Exports/GPSTrack/CruiseTrack.csv")) {
-  tracks <- read.csv("Acoustics/Echoview/Exports/GPSTrack/CruiseTrack.csv", header=T, row.names=1,stringsAsFactors = FALSE)[,-7]
+} else if (file.exists("Acoustics/Echoview/Exports/GPSTrack/CruiseTrack_1.csv")) {
+  track1 <- read.csv("Acoustics/Echoview/Exports/GPSTrack/CruiseTrack_1.csv", header=T, row.names=1,stringsAsFactors = FALSE)[,-7]
+  track2 <- read.csv("Acoustics/Echoview/Exports/GPSTrack/CruiseTrack_2.csv", header=T, row.names=1,stringsAsFactors = FALSE)[,-7]
+  tracks <- rbind(track1,track2)
   track <-tracks[(seq(1,to=nrow(tracks),by=100)),] #keep 1 in every 100 records to slim dataset
   write.csv(track, "Acoustics/Echoview/Exports/GPSTrack/SlimCruiseTrack.csv")
 } else {
