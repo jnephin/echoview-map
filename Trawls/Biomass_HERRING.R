@@ -305,7 +305,6 @@ for (i in options){
     # proportion of transect that regions covered
     distance <- merge(transects, regions, by = "Transect")
     distance$reg_prop <- distance$reg_dist/distance$trans_dist
-    distance$reg_prop <- distance$reg_dist/distance$trans_dist
     distance$trans_prop <- distance$trans_dist/total
     distance
     
@@ -318,7 +317,7 @@ for (i in options){
     
     ##########################################################################################
     ##########################################################################################
-    # OTHER BIOMASS CALCULATIONS
+    # BIOMASS CALCULATIONS
    
     # check for species missing in catch data
     summ$SPECIES_DESC
