@@ -77,9 +77,11 @@ if (file.exists("Acoustics/Echoview/Exports/GPSTrack/SlimCruiseTrack.csv")) {
   stop("No CruiseTrack.csv found in '", file.path(getwd(), "Acoustics/Echoview/Exports/GPSTrack"), "' directory")
 }
 
+
+
 # GPS status
 track <- track[!track$GPS_status == 1,]
-  
+
 #dates by day
 date <- track[!duplicated(track$GPS_date),]
 date$GPS_date <- dates(date$GPS_date, format = "y-m-d")
@@ -110,32 +112,37 @@ blues <- data.frame(blues, level = sort(unique(by$level)))
 by <- merge(by, blues, by = "level")
 
 
+# title
+cruise <- strsplit(getwd(), "/")[[1]][4]
+
 ## MAP
 map <- ggplot(data = NULL) +
-        geom_path(data = by, aes(x = X, y = Y, group=ID, colour=blues), size=.1) +
-        geom_polygon(data = ld, aes(x = X, y = Y, group=PID), 
-                            fill = "gray80", colour = "gray60", size = .1) +
-        labs(x = "Longitude", y = "Latitude") +
-        coord_map(xlim=xlims, ylim=ylims) +
-        scale_colour_identity() +
-        theme(panel.border = element_rect(fill=NA, colour="black"),
-                     panel.background = element_rect(fill="white",colour="black"),
-                     axis.ticks = element_line(colour="black"),
-                     panel.grid.major = element_blank(),
-                     panel.grid.minor = element_blank(),
-                     axis.ticks.length = unit(0.1,"cm"),
-                     axis.text = element_text(size=10, colour = "black"),
-                     axis.title = element_text(size=11),
-                     plot.margin = unit(c(.5,.5,.5,.5), "lines")) + 
-#cruise track
-      geom_path(data = track, aes(x = Longitude, y = Latitude),
-                           linetype = "solid", size = .8) +
-#cruise day
-       geom_text(data = date, aes(x = Longitude, y = Latitude, label = month_day), 
-                 colour="black", size=2,  fontface = 2, vjust = -.5)
+  geom_path(data = by, aes(x = X, y = Y, group=ID, colour=blues), size=.1) +
+  geom_polygon(data = ld, aes(x = X, y = Y, group=PID), 
+               fill = "gray80", colour = "gray60", size = .1) +
+  labs(x = "Longitude", y = "Latitude") +
+  coord_map(xlim=xlims, ylim=ylims) +
+  scale_colour_identity() +
+  theme(panel.border = element_rect(fill=NA, colour="black"),
+        panel.background = element_rect(fill="white",colour="black"),
+        axis.ticks = element_line(colour="black"),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        axis.ticks.length = unit(0.1,"cm"),
+        axis.text = element_text(size=10, colour = "black"),
+        axis.title = element_text(size=11),
+        plot.margin = unit(c(.5,.5,.5,.5), "lines")) + 
+  #cruise track
+  geom_path(data = track, aes(x = Longitude, y = Latitude),
+            linetype = "solid", size = .8) +
+  #cruise day
+  geom_text(data = date, aes(x = Longitude, y = Latitude, label = month_day), 
+            colour="black", size=2,  fontface = 2, vjust = -.5) +
+  # title
+  ggtitle(cruise)
 
 
 #print pdf
-pdf("Other data/Figures/Trackline_Map.pdf", width=12, height=12)
+pdf(paste("Other data/Figures/", cruise,"_Trackline_Map.pdf", sep =""), width=12, height=12)
 map
 dev.off()

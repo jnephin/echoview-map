@@ -80,12 +80,14 @@ daytrack$GPS_date <- gsub("-", "", daytrack$GPS_date)
 dayfiles <- list()
 for (i in 1:nrow(riseset)){
   ind <- which(track$datetime >= riseset$sunrise[i] & track$datetime <= riseset$sunset[i])
-  c.ind <- c(min(ind)-1, ind, max(ind)+1) # complete indices
-  r.ind <- c.ind[c.ind %in% 1:(nrow(track))] # only real indices
-  day <- daytrack$GPS_date[i]
-  dayfiles[[day]] <- track$filename[r.ind]
+  if(length(ind) != 0){
+    c.ind <- c(min(ind)-1, ind, max(ind)+1) # complete indices
+    r.ind <- c.ind[c.ind %in% 1:(nrow(track))] # only real indices
+    day <- daytrack$GPS_date[i]
+    dayfiles[[day]] <- track$filename[r.ind]
+  }
 }
-  
+
 
 # add first night
 nightfiles <- list()
@@ -99,10 +101,12 @@ if(length(ind) != 0){
 # find night raw files
 for (i in 2:(nrow(riseset)-1)){
   ind <- which(track$datetime <= riseset$sunrise[i+1] & track$datetime >= riseset$sunset[i])
-  c.ind <- c(min(ind)-1, ind, max(ind)+1) # complete indices
-  r.ind <- c.ind[c.ind %in% 1:(nrow(track))] # only real indices
-  night <- daytrack$GPS_date[i]
-  nightfiles[[night]] <- track$filename[r.ind]
+  if(length(ind) != 0){
+    c.ind <- c(min(ind)-1, ind, max(ind)+1) # complete indices
+    r.ind <- c.ind[c.ind %in% 1:(nrow(track))] # only real indices
+    night <- daytrack$GPS_date[i]
+    nightfiles[[night]] <- track$filename[r.ind]
+  }
 }
 
 # add last night
