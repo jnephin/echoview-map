@@ -261,7 +261,6 @@ comb$SPECIES_DESC[grep("herring", comb$SPECIES_DESC, ignore.case=T)] <- "Herring
 comb$SPECIES_DESC[grep("rockfish|perch", comb$SPECIES_DESC, ignore.case=T)] <- "Rockfish"
 comb$SPECIES_DESC[grep("sardine", comb$SPECIES_DESC, ignore.case=T)] <- "Sardine"
 comb$SPECIES_DESC[grep("myctophid|lampfish|headlight", comb$SPECIES_DESC, ignore.case=T)] <- "Myctophids"
-comb$SPECIES_DESC[grep("cps|sardine", comb$SPECIES_DESC, ignore.case=T)] <- "CPS"
 comb$SPECIES_DESC[grep("mackerel", comb$SPECIES_DESC, ignore.case=T)] <- "Mackerel"
 comb$SPECIES_DESC[grep("pollock", comb$SPECIES_DESC, ignore.case=T)] <- "Pollock"
 comb$SPECIES_DESC[grep("eulachon", comb$SPECIES_DESC, ignore.case=T)] <- "Eulachon"

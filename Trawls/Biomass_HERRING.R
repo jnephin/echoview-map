@@ -14,25 +14,27 @@ setwd('..');setwd('..')
 # load data
 
 # load mean lengths and weight per species
-summs <- read.csv("Other data/Catch data/morpho_summary.csv", header=T, stringsAsFactors = FALSE, 
-                  row.names = 1)
+summs <- read.csv("Other data/Catch data/morpho_summary.csv", 
+                  header=T, stringsAsFactors = FALSE, row.names = 1)
 
 # load mean lengths, weights and counts per set per species
-morph <- read.csv("Other data/Catch data/morpho_counts.csv", header=T, stringsAsFactors = FALSE, 
-                  row.names = 1)
+morph <- read.csv("Other data/Catch data/morpho_counts.csv", 
+                  header=T, stringsAsFactors = FALSE, row.names = 1)
 
 # load backscatter data
-nasc <- read.csv("Acoustics/Echoview/Exports/Sv raw pings T2/IntegratedByRegionsByCells.csv", header=T, 
-                 stringsAsFactors = FALSE, row.names = 1)
+nasc <- read.csv("Acoustics/Echoview/Exports/Sv raw pings T2/IntegratedByRegionsByCells.csv", 
+                 header=T, stringsAsFactors = FALSE, row.names = 1)
 nasc_cells <- read.csv("Acoustics/Echoview/Exports/Sv raw pings T2/IntegratedByCells.csv", header=T, 
                        stringsAsFactors = FALSE, row.names = 1)
 
 # load echoview log
-logs <- read.csv("Acoustics/Echoview/Exports/Log/Cruiselog.csv", header=T, stringsAsFactors = FALSE, row.names=1)
+logs <- read.csv("Acoustics/Echoview/Exports/Log/Cruiselog.csv", 
+                 header=T, stringsAsFactors = FALSE, row.names=1)
 colnames(logs)[1] <- "Region_ID"
 
 # load target strength coefficients
 coeff <- read.csv("Rscripts/Trawls/TS_coefficients.csv", header=T, stringsAsFactors = FALSE)
+
 
 
 
@@ -385,19 +387,26 @@ ddply(int_region, .(Replicate,Region_class), summarise, n = length(Region_class)
 ddply(biomass.df[biomass.df$estimate == "a",], .(loc,Region_class), summarise, n = length(Region_class))
 
 
-
+# save
+save(biomass.df, file = "Rscripts/Trawls/Biomassbycell.Rda")
+save(int_cell, file = "Rscripts/Trawls/Cell.Rda")
 
 
 ##########################################################################################
 ##########################################################################################
 # BIOMASS SUMMARY 
 
-
+# sum biomass by interval, replicate and species
+biomass.int <- ddply(biomass.df, .(Interval, loc, Region_class, estimate, Transect),
+                 summarise,
+                 Density = sum(density),
+                 Biomass = sum(biomass))
 
 # average biomass (kg per nmi^2) per species per transect over their regions
-tmp <- ddply(biomass.df, .(loc, Region_class, estimate, Transect), summarise, 
-             Density = mean(density),
-             Biomass = mean(biomass))
+tmp <- ddply(biomass.int, .(loc, Region_class, estimate, Transect), 
+             summarise, 
+             Density = mean(Density),
+             Biomass = mean(Biomass))
 
 # merge with distance data
 distance.df <- distance.df[!duplicated(distance.df),]
@@ -419,13 +428,12 @@ avg <- ddply(mrg, .(loc, Region_class, estimate), summarise,
 avg$Area.Biomass.kg <- NA
 avg$Area.Biomass.kg[avg$loc == "Replicate1"] <- avg$Biomass.kg.sqnmi[avg$loc == "Replicate1"] * 1900
 avg$Area.Biomass.kg[avg$loc == "Replicate2"] <- avg$Biomass.kg.sqnmi[avg$loc == "Replicate2"] * 1900
-
 avg
 
 
 
 #######  export #######
-write.csv(avg, file = "Other data/Catch data/Biomass.csv")
+write.csv(avg, file = "Other data/Biomass/BiomassSummary.csv")
 
 
 
@@ -456,7 +464,8 @@ repmap <- ggplot(data = NULL) +
   geom_polygon(data = lp, aes(x = X, y = Y, group=PID), 
                fill = "gray80", colour = "gray60", size = .1) +
   geom_point(data = bio.rep[bio.rep$estimate == "a",], 
-             aes(x = Lon_S, y = Lat_S, colour=Region_class, fill=Region_class, size = biomass/1000), 
+             aes(x = Lon_S, y = Lat_S, colour=Region_class, 
+                 fill=Region_class, size = biomass/1000), 
              pch = 21, alpha=.6) +
   facet_wrap(~loc, ncol=2) +
   scale_size_area(max_size = 18, name = "Biomass (T)")+
@@ -493,13 +502,17 @@ dev.off()
 ##########################################################################################
 # COMPARE TOTAL BIOMASS
 
+avg$loc[avg$loc == "Replicate1"] <- "Rep 1"
+avg$loc[avg$loc == "Replicate2"] <- "Rep 2"
+
 # estimates/replicates plot
 comp_est <- ggplot(data = avg) + 
-  geom_bar(aes(x = Region_class, y = Area.Biomass.kg/1000, group = estimate, fill = Region_class),
+  geom_bar(aes(x = Region_class, y = Area.Biomass.kg/1000, 
+               group = loc, fill = Region_class),
            stat= "identity", position = "dodge", colour = "black", size = .1) +
-  geom_text(aes(x=Region_class, y = Area.Biomass.kg/1000, group = estimate, label = estimate), 
+  geom_text(aes(x=Region_class, y = Area.Biomass.kg/1000, group = loc, label = loc), 
             position = position_dodge(width=1), size = 2.5, vjust = -.3) +
-  facet_wrap(~loc) +
+  facet_wrap(~estimate) +
   labs(x="", y=" Total Biomass (T)") +
   scale_fill_manual(values = pal, guide="none") +
   scale_y_continuous(label=comma, expand =c(0,0), 

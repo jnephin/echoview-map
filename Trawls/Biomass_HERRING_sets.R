@@ -73,11 +73,11 @@ int_cell <- int_cell[,c( "Date", "Time", "Interval","Lat_S","Lon_S","Lat_E","Lon
 
 # sum nasc by region by cell by interval (across depth bins)
 int_region <- ddply(nasc, .(Region_class, Region_ID, Region_name, 
-                             Lat_S, Lon_S, Lat_E, Lon_E, Interval, EV_filename), 
-                     summarise,
-                     NASC = sum(PRC_NASC),
-                     Date = head(Date_S,1),
-                     Time = head(Time_S,1))
+                            Lat_S, Lon_S, Lat_E, Lon_E, Interval, EV_filename), 
+                    summarise,
+                    NASC = sum(PRC_NASC),
+                    Date = head(Date_S,1),
+                    Time = head(Time_S,1))
 
 
 # check for bad data

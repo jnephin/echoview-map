@@ -324,7 +324,6 @@ comb$SPECIES_COMMON_NAME[comb$SPECIES_COMMON_NAME == "PACIFIC HAKE" &
 comb$SPECIES_COMMON_NAME[grep("herring", comb$SPECIES_COMMON_NAME, ignore.case=T)] <- "Herring"
 comb$SPECIES_COMMON_NAME[grep("rockfish|perch", comb$SPECIES_COMMON_NAME, ignore.case=T)] <- "Rockfish"
 comb$SPECIES_COMMON_NAME[grep("myctophid|lampfish|headlight", comb$SPECIES_COMMON_NAME, ignore.case=T)] <- "Myctophids"
-comb$SPECIES_COMMON_NAME[grep("cps|sardine", comb$SPECIES_COMMON_NAME, ignore.case=T)] <- "CPS"
 comb$SPECIES_COMMON_NAME[grep("mackerel", comb$SPECIES_COMMON_NAME, ignore.case=T)] <- "Mackerel"
 comb$SPECIES_COMMON_NAME[grep("pollock", comb$SPECIES_COMMON_NAME, ignore.case=T)] <- "Pollock"
 comb$SPECIES_COMMON_NAME[grep("eulachon", comb$SPECIES_COMMON_NAME, ignore.case=T)] <- "Eulachon"
