@@ -328,8 +328,7 @@ if(analysis == "Regions") {
 #nasc
 if(analysis == "NASC") {
   base <- base + geom_point(data = nasc.df, aes_string(x = "Lon_S", y = "Lat_S",
-                            colour="set1", alpha = "alpha", size = "PRC_NASC"), pch = 20, 
-                            max_size = maxsize) +
+                            colour="set1", alpha = "alpha", size = "PRC_NASC"), pch = 20) +
                  scale_size_area(max_size = maxsize, name = "NASC", breaks = breaks) +
                  scale_alpha_identity()
 }

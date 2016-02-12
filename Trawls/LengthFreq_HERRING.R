@@ -2,6 +2,8 @@ require(ggplot2)
 require(grid)
 require(PBSmapping)
 require(plyr)
+require(reshape2)
+
 
 # set working directory 
 setwd('..');setwd('..')
@@ -134,6 +136,7 @@ histo <-  ggplot(data = length[length$SPECIES_DESC == f,]) +
         strip.text = element_text(size=10, colour = "black"),
         axis.title = element_text(size=10, colour = "black"),
         plot.margin = unit(c(.2,.2,.2,.2), "lines")) # top, right, bottom, and left
+print(histo)
 pdf(paste("Other data/Figures/","Lengths_Histogram",name,".pdf", sep=""), width = 5, height = 3)
 print(histo)
 dev.off()
@@ -256,11 +259,12 @@ unique(comb$SPECIES_DESC)
 comb$SPECIES_DESC[comb$SPECIES_DESC == "PACIFIC HAKE" & 
                     comb$SPECIMEN_MORPHOMETRICS_VALUE > cutoff  ] <- "Hake"
 comb$SPECIES_DESC[comb$SPECIES_DESC == "PACIFIC HAKE" & 
-                    comb$SPECIMEN_MORPHOMETRICS_VALUE < cutoff  ] <- "Age-1 Hake"
+                    comb$SPECIMEN_MORPHOMETRICS_VALUE <= cutoff  ] <- "Age-1 Hake"
 comb$SPECIES_DESC[grep("herring", comb$SPECIES_DESC, ignore.case=T)] <- "Herring"
 comb$SPECIES_DESC[grep("rockfish|perch", comb$SPECIES_DESC, ignore.case=T)] <- "Rockfish"
 comb$SPECIES_DESC[grep("sardine", comb$SPECIES_DESC, ignore.case=T)] <- "Sardine"
 comb$SPECIES_DESC[grep("myctophid|lampfish|headlight", comb$SPECIES_DESC, ignore.case=T)] <- "Myctophids"
+comb$SPECIES_DESC[grep("cps", comb$SPECIES_DESC, ignore.case=T)] <- "CPS"
 comb$SPECIES_DESC[grep("mackerel", comb$SPECIES_DESC, ignore.case=T)] <- "Mackerel"
 comb$SPECIES_DESC[grep("pollock", comb$SPECIES_DESC, ignore.case=T)] <- "Pollock"
 comb$SPECIES_DESC[grep("eulachon", comb$SPECIES_DESC, ignore.case=T)] <- "Eulachon"
@@ -277,7 +281,8 @@ morph_sum <- NULL
 for (r in 1:2){
 df <- ddply(comb[comb$Replicate == r,], .(SPECIES_DESC), summarise, 
                       mean.length.mm = mean(SPECIMEN_MORPHOMETRICS_VALUE),
-                      weigted.mean.length.mm = sum(SPECIMEN_MORPHOMETRICS_VALUE * WEIGHT)/sum(WEIGHT),
+                      weigted.mean.length.mm = sum(SPECIMEN_MORPHOMETRICS_VALUE * 
+                                                     CATCH_WEIGHT)/sum(CATCH_WEIGHT),
                       mean.weight.kg = mean(WEIGHT)/1000,
                       n = length(WEIGHT))
 df$Replicate <- r
@@ -333,9 +338,30 @@ write.csv(morph_count, file = "Other data/Catch data/morpho_counts.csv")
 
 
 
+##########################################################################################
+##########################################################################################
+# EXPORT length frequencies by species
 
+# round lengths to 1 cm resolution
+comb$Lenth <- round_any(comb$SPECIMEN_MORPHOMETRICS_VALUE, 10)
 
+# calc length freq 
+freq_sum <- NULL
+for (r in 1:2){
+  tmp <- comb[comb$Replicate == r,]
+  freqtable <- table(tmp$Lenth, tmp$SPECIES_DESC)
+  proptable <- prop.table(freqtable, 2)
+  propmelt <- melt(proptable)
+  propmelt$Replicate <- r
+  colnames(propmelt) <- c("Length","SPECIES_DESC","Prop", "Replicate")
+  freq_sum <- rbind(freq_sum, propmelt)
+}
 
+# remove rows with zeros
+freq_sum <- freq_sum[!freq_sum$Prop == 0, ]
+
+# export summary
+write.csv(freq_sum, file = "Other data/Catch data/Length_freq.csv")
 
 
 

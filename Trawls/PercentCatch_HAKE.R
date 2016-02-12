@@ -104,23 +104,27 @@ pal.t <- colorRampPalette(cols[1:(leg+1)],space = c("rgb"),interpolate = c("spli
 
 ## plot
 plototal <- ggplot(data = top.catch) +
-      geom_bar(aes(x=1, y = percent, fill = SPECIES_COMMON_NAME), stat = "identity", colour="black", size=.05)+
-      scale_fill_manual(values= pal.t, name = "Species", 
-                        labels = paste(ord.catch$SPECIES_COMMON_NAME," - ",ord.catch$CATCH_WEIGHT,"kg", sep=""),
-                        guide=guide_legend(override.aes = list(colour=NA)))+
-      scale_y_continuous(limits=c(0,100))+
-      coord_polar(theta = "y")+
-      theme_bw()+
-      theme(panel.grid.major = element_blank(),
-        panel.border = element_blank(),
+  geom_bar(aes(x=1, y = percent, fill = SPECIES_COMMON_NAME), stat = "identity", 
+           colour="black", size=.05)+
+  scale_fill_manual(values= pal.t, name = "", 
+                    labels = paste(ord.catch$SPECIES_COMMON_NAME," - ",
+                                   ord.catch$CATCH_WEIGHT,"kg", sep=""),
+                    guide=guide_legend(override.aes = list(colour=NA)))+
+  scale_y_continuous(limits=c(0,100))+
+  coord_polar(theta = "y")+
+  theme(panel.border = element_blank(),
+        panel.background = element_blank(),
+        strip.background = element_blank(),
+        strip.text.x = element_blank(),
+        axis.ticks = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
         axis.text = element_blank(),
         axis.title = element_blank(),
-        axis.ticks = element_blank(),
-        legend.text = element_text(size=7),
-        legend.key.size = unit(.4, "cm"),
-        legend.key =  element_blank(),
-        legend.title = element_text(size=9, face="plain"),
-        plot.margin = unit(c(0,0,0,0), "lines"))
+        legend.text = element_text(size=13),
+        legend.background = element_blank(), legend.key = element_blank(),
+        legend.position = "right",
+        plot.margin = unit(c(.2,.2,.2,.2), "lines"))
 plototal
 
 pdf("Other data/Figures/TotalCatch_Percent.pdf", width = 6, height = 3.5)
