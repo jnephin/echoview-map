@@ -8,12 +8,16 @@ require(reshape2)
 # set working directory 
 setwd('..');setwd('..')
 
+
+
+#########################################################################################
 # load  morpho data
 morpho <- read.csv("Other data/Catch data/morpho.csv", header=T, stringsAsFactors = FALSE)
 
 # load catch data for lat long
 catch <- read.csv("Other data/Catch data/catch.csv", header=T, stringsAsFactors = FALSE)
-catch <- catch[!is.na(catch$CATCH_WEIGHT),]
+catch <- catch[!is.na(catch$CATCH_WEIGHT_kg),]
+colnames(catch)[8] <- "SPECIES_DESC"
 
 # load echoview log
 log <- read.csv("Acoustics/Echoview/Exports/Log/Cruiselog.csv", header=T, stringsAsFactors = FALSE, row.names=1)
@@ -22,7 +26,7 @@ log <- read.csv("Acoustics/Echoview/Exports/Log/Cruiselog.csv", header=T, string
 coeff_TS <- read.csv("Rscripts/Trawls/TS_coefficients.csv", header=T, stringsAsFactors = FALSE)
 
 
-#########################################################################################
+##########################################################################################
 ##########################################################################################
 # dataframe pre-processing
 
@@ -32,7 +36,7 @@ coeff_TS <- read.csv("Rscripts/Trawls/TS_coefficients.csv", header=T, stringsAsF
 # get xy data from log
 sdlog <- log[grep("SD", log$Region_name, ignore.case=TRUE),] #find SD
 sdlog$SET <-  as.numeric(sub(".*SD", "", sdlog$Region_name))
-sdlog$Replicate <- sub("T", "", sdlog$File)
+sdlog$Replicate <- gsub("[A-Za-z ]", "", sdlog$File)
 sdlog$Replicate <- as.numeric(sub("[.].*", "", sdlog$Replicate))
 set.xy <- sdlog[c("SET","Lat_s","Lon_s", "Replicate")]
 
@@ -41,29 +45,28 @@ sort(unique(as.numeric(sdlog$SET)))
 sort(unique(morpho$SET))
 
 # subset morpho data so that it only contains log sets
-morpho <- merge(morpho, set.xy[c("SET","Replicate")], by = "SET")
+morpho <- merge(morpho, set.xy, by = "SET")
 
 
 
 ## UPDATE UNITS
 
-# remove weight records - only interested in lengths
-morpho <- morpho[grep("LENGTH",morpho$MORPHOMETRICS_ATTRIBUTE_DESC),]
-
 # check length units
-table(morpho$MORPHOMETRICS_UNIT_DESC)
+table(morpho$LENGTH_UNITS)
 
 # convert all lengths to mm
-morpho$SPECIMEN_MORPHOMETRICS_VALUE <- ifelse(morpho$MORPHOMETRICS_UNIT_DESC == "CENTIMETRE", 
-                                              morpho$SPECIMEN_MORPHOMETRICS_VALUE*10,
-                                              morpho$SPECIMEN_MORPHOMETRICS_VALUE)
+morpho$LENGTH <- ifelse(morpho$LENGTH_UNITS == "CENTIMETRE", 
+                              morpho$LENGTH*10,
+                              morpho$LENGTH)
 
+## UPDATE SPECIES DESC
+morpho$SPECIES_DESC <- sub(".*- ", "", morpho$SPECIES_CODE)
 
 ## CHECK
 
 # do species lengths in morpho match species length in coeff for regressions?
 coeff_TS[!duplicated(coeff_TS$Region_class),c("Region_class", "MORPHOMETRICS_ATTRIBUTE_DESC")]
-ddply(morpho, .(SPECIES_DESC), summarise, MORPHOMETRICS_ATTRIBUTE_DESC = unique(MORPHOMETRICS_ATTRIBUTE_DESC))
+ddply(morpho, .(SPECIES_DESC), summarise, LENGTH_TYPE = unique(LENGTH_TYPE))
 
 
 
@@ -74,12 +77,12 @@ ddply(morpho, .(SPECIES_DESC), summarise, MORPHOMETRICS_ATTRIBUTE_DESC = unique(
 
 # check mean, sd, and range of lengths within a species
 check.lengths <- ddply(morpho, .(SPECIES_DESC), summarise, 
-                          mean = mean(SPECIMEN_MORPHOMETRICS_VALUE),
-                          median = median(SPECIMEN_MORPHOMETRICS_VALUE),
-                          n = length(SPECIMEN_MORPHOMETRICS_VALUE),
-                          sd = sd(SPECIMEN_MORPHOMETRICS_VALUE),
-                          min = min(SPECIMEN_MORPHOMETRICS_VALUE), 
-                          max = max(SPECIMEN_MORPHOMETRICS_VALUE))
+                          mean = mean(LENGTH),
+                          median = median(LENGTH),
+                          n = length(LENGTH),
+                          sd = sd(LENGTH),
+                          min = min(LENGTH), 
+                          max = max(LENGTH))
 check.lengths
 
 
@@ -113,13 +116,13 @@ fish <- unique(length$SPECIES_DESC)
 
 for (f in fish){
   
-minl <-  min(length$SPECIMEN_MORPHOMETRICS_VALUE[length$SPECIES_DESC == f])
-maxl <-  max(length$SPECIMEN_MORPHOMETRICS_VALUE[length$SPECIES_DESC == f])
-meanl <- mean(length$SPECIMEN_MORPHOMETRICS_VALUE[length$SPECIES_DESC == f])
+minl <-  min(length$LENGTH[length$SPECIES_DESC == f])
+maxl <-  max(length$LENGTH[length$SPECIES_DESC == f])
+meanl <- mean(length$LENGTH[length$SPECIES_DESC == f])
 name <- gsub( "\\s", "_" , f)
   
 histo <-  ggplot(data = length[length$SPECIES_DESC == f,]) + 
-  geom_histogram(aes(x = SPECIMEN_MORPHOMETRICS_VALUE), binwidth = (maxl-minl)/20) +
+  geom_histogram(aes(x = LENGTH), binwidth = (maxl-minl)/20) +
   geom_vline(xintercept = meanl, colour = "red") +
   labs(x="Length (mm)", y="Frequency") +
   scale_y_continuous(expand = c(0.01, 0)) +
@@ -135,11 +138,9 @@ histo <-  ggplot(data = length[length$SPECIES_DESC == f,]) +
         axis.text = element_text(size=7, colour = "black"),
         strip.text = element_text(size=10, colour = "black"),
         axis.title = element_text(size=10, colour = "black"),
-        plot.margin = unit(c(.2,.2,.2,.2), "lines")) # top, right, bottom, and left
+        plot.margin = unit(c(.2,.2,.2,.2), "lines")) + # top, right, bottom, and left
+  ggtitle(f)
 print(histo)
-pdf(paste("Other data/Figures/","Lengths_Histogram",name,".pdf", sep=""), width = 5, height = 3)
-print(histo)
-dev.off()
 }
 
 
@@ -154,14 +155,11 @@ cutoff <- 350
 # MAP mean lengths
 
 # calc mean lengths for each species and each set
-mean.lengths <- ddply(morpho, .(SET, SPECIES_DESC), summarise, 
-                      mean = round(mean(SPECIMEN_MORPHOMETRICS_VALUE)),
-                      median = median(SPECIMEN_MORPHOMETRICS_VALUE),
-                      sd = sd(SPECIMEN_MORPHOMETRICS_VALUE))
+mean.lengths <- ddply(morpho, .(SET, SPECIES_DESC, Lat_s, Lon_s), summarise, 
+                      mean = round(mean(LENGTH)),
+                      median = median(LENGTH),
+                      sd = sd(LENGTH))
 mean.lengths$SPECIES_DESC[grep("rockfish|perch", mean.lengths$SPECIES_DESC, ignore.case=T)] <- "Rockfish"
-
-# merge lat long with mean lengths
-lengths.xy <- merge(mean.lengths, set.xy, by = "SET")
 
 
 # Regional Polygon 
@@ -178,7 +176,7 @@ land <- data.frame(landC)
 for (f in fish){
 
 name <- gsub( "\\s", "_" , f)
-fish.xy <- lengths.xy[lengths.xy$SPECIES_DESC == f,]
+fish.xy <- mean.lengths[mean.lengths$SPECIES_DESC == f,]
 
 mapmean <-  ggplot(data = NULL) + 
   # land polygon  
@@ -191,8 +189,8 @@ mapmean <-  ggplot(data = NULL) +
              colour = "#e41a1c" ,pch=21, fill = "#e41a1c" , alpha =.3)+
   scale_size_area(max_size = 8, name = " Mean\n Length (mm)") +
   # spatial extent
-  coord_map(xlim = c(min(set.xy$Lon_s)-2, max(set.xy$Lon_s)+2), 
-            ylim = c(min(set.xy$Lat_s)-1, max(set.xy$Lat_s)+1)) +
+  coord_map(xlim = c(min(set.xy$Lon_s)-1, max(set.xy$Lon_s)+1), 
+            ylim = c(min(set.xy$Lat_s)-.5, max(set.xy$Lat_s)+.5)) +
   # labs
   labs(x="Longitude", y="Latitude") +
   # themes
@@ -209,11 +207,8 @@ mapmean <-  ggplot(data = NULL) +
         legend.key = element_blank(),
         legend.position = "right",
         plot.margin = unit(c(.5,.5,.5,.5), "lines")) +
-  ggtitle(lab = name)
-
-#pdf(paste("Other data/Figures/","Lengths_Map",name,".pdf", sep=""), width = 4.5, height = 3.5)
+  ggtitle(name)
 print(mapmean)
-#dev.off()
 }
 
 
@@ -226,27 +221,27 @@ print(mapmean)
 
 # group rockfish catch together
 rock <- grep("rockfish|perch", catch$SPECIES_DESC, ignore.case=T)
-r_catch <- catch[rock,c("SET", "SPECIES_DESC", "CATCH_WEIGHT")]
-rs_catch <- ddply(r_catch, .(SET), transform, CATCH_WEIGHT = sum(CATCH_WEIGHT))
+r_catch <- catch[rock,c("SET", "SPECIES_DESC", "CATCH_WEIGHT_kg")]
+rs_catch <- ddply(r_catch, .(SET), transform, CATCH_WEIGHT_kg = sum(CATCH_WEIGHT_kg))
 
 # group salmon catch together
 salmon <- grep("COHO SALMON|CHUM SALMON|CHINOOK SALMON|PINK SALMON|SOCKEYE SALMON", catch$SPECIES_DESC, ignore.case=T)
-s_catch <- catch[salmon,c("SET", "SPECIES_DESC", "CATCH_WEIGHT")]
-ss_catch <- ddply(s_catch, .(SET), transform, CATCH_WEIGHT = sum(CATCH_WEIGHT))
+s_catch <- catch[salmon,c("SET", "SPECIES_DESC", "CATCH_WEIGHT_kg")]
+ss_catch <- ddply(s_catch, .(SET), transform, CATCH_WEIGHT_kg = sum(CATCH_WEIGHT_kg))
 
 
 # group myctophid catch together
 myctophid <- grep("myctophid|lampfish|headlight", catch$SPECIES_DESC, ignore.case=T)
-m_catch <- catch[myctophid,c("SET", "SPECIES_DESC", "CATCH_WEIGHT")]
-sm_catch <- ddply(m_catch, .(SET), transform, CATCH_WEIGHT = sum(CATCH_WEIGHT))
+m_catch <- catch[myctophid,c("SET", "SPECIES_DESC", "CATCH_WEIGHT_kg")]
+sm_catch <- ddply(m_catch, .(SET), transform, CATCH_WEIGHT_kg = sum(CATCH_WEIGHT_kg))
 
 
-w_catch <- catch[-c(rock,salmon,myctophid),c("SET", "SPECIES_DESC", "CATCH_WEIGHT")]
+w_catch <- catch[-c(rock,salmon,myctophid),c("SET", "SPECIES_DESC", "CATCH_WEIGHT_kg")]
 grp_catch <- rbind(w_catch,rs_catch, ss_catch, sm_catch)
 
 
 # merge catch and morpho
-comb <- merge(morpho, grp_catch[c("SET", "SPECIES_DESC", "CATCH_WEIGHT")], 
+comb <- merge(morpho, grp_catch[c("SET", "SPECIES_DESC", "CATCH_WEIGHT_kg")], 
               by = c("SET", "SPECIES_DESC"))
 
 
@@ -257,9 +252,9 @@ unique(comb$SPECIES_DESC)
 
 # reclassify morpho species to fit analysis region species
 comb$SPECIES_DESC[comb$SPECIES_DESC == "PACIFIC HAKE" & 
-                    comb$SPECIMEN_MORPHOMETRICS_VALUE > cutoff  ] <- "Hake"
+                    comb$LENGTH > cutoff  ] <- "Hake"
 comb$SPECIES_DESC[comb$SPECIES_DESC == "PACIFIC HAKE" & 
-                    comb$SPECIMEN_MORPHOMETRICS_VALUE <= cutoff  ] <- "Age-1 Hake"
+                    comb$LENGTH <= cutoff  ] <- "Age-1 Hake"
 comb$SPECIES_DESC[grep("herring", comb$SPECIES_DESC, ignore.case=T)] <- "Herring"
 comb$SPECIES_DESC[grep("rockfish|perch", comb$SPECIES_DESC, ignore.case=T)] <- "Rockfish"
 comb$SPECIES_DESC[grep("sardine", comb$SPECIES_DESC, ignore.case=T)] <- "Sardine"
@@ -278,12 +273,12 @@ table(comb$WEIGHT_UNITS)
 
 # calc mean length and weight for each species
 morph_sum <- NULL
-for (r in 1:2){
+for (r in unique(comb$Replicate)){
 df <- ddply(comb[comb$Replicate == r,], .(SPECIES_DESC), summarise, 
-                      mean.length.mm = mean(SPECIMEN_MORPHOMETRICS_VALUE),
-                      weigted.mean.length.mm = sum(SPECIMEN_MORPHOMETRICS_VALUE * 
-                                                     CATCH_WEIGHT)/sum(CATCH_WEIGHT),
-                      mean.weight.kg = mean(WEIGHT)/1000,
+                      mean.length.mm = mean(LENGTH),
+                      weigted.mean.length.mm = sum(LENGTH * CATCH_WEIGHT_kg)/
+                                                    sum(CATCH_WEIGHT_kg),
+                      mean.weight.kg = mean(WEIGHT, na.rm = T)/1000,
                       n = length(WEIGHT))
 df$Replicate <- r
 morph_sum <- rbind(morph_sum, df)
@@ -316,15 +311,15 @@ for (h in unique(comb$SET)){
 
 
 # calculate new total catch weights for hake and age1 hake in the same tows
-comb$CATCH_WEIGHT <- comb$CATCH_WEIGHT * comb$phake
+comb$CATCH_WEIGHT_kg <- comb$CATCH_WEIGHT_kg * comb$phake
 
 # calc mean weights (in kg) for each species and each set
 morph_count <- NULL
-for (r in 1:2){
+for (r in unique(comb$Replicate)){
 df <- ddply(comb[comb$Replicate == r,], .(SET, SPECIES_DESC), summarise,
-                mean.length.mm = mean(SPECIMEN_MORPHOMETRICS_VALUE),
-                mean.weight.kg = mean(WEIGHT)/1000,
-                total.weight.kg = min(CATCH_WEIGHT))
+                mean.length.mm = mean(LENGTH),
+                mean.weight.kg = mean(WEIGHT, na.rm = T)/1000,
+                total.weight.kg = min(CATCH_WEIGHT_kg))
 df$Replicate <- r
 morph_count <- rbind(morph_count, df)
 }
@@ -343,11 +338,11 @@ write.csv(morph_count, file = "Other data/Catch data/morpho_counts.csv")
 # EXPORT length frequencies by species
 
 # round lengths to 1 cm resolution
-comb$Lenth <- round_any(comb$SPECIMEN_MORPHOMETRICS_VALUE, 10)
+comb$Lenth <- round_any(comb$LENGTH, 10)
 
 # calc length freq 
 freq_sum <- NULL
-for (r in 1:2){
+for (r in unique(comb$Replicate)){
   tmp <- comb[comb$Replicate == r,]
   freqtable <- table(tmp$Lenth, tmp$SPECIES_DESC)
   proptable <- prop.table(freqtable, 2)

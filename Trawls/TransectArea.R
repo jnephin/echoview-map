@@ -22,21 +22,21 @@ setwd('..');setwd('..')
 nasc <- read.csv("Acoustics/Echoview/Exports/Sv raw pings T2/IntegratedByCells.csv", header=T, 
                        stringsAsFactors = FALSE, row.names = 1)
 
-# load survey data
-trans <- read.csv("Other data/Catch data/transects.csv", header=T, stringsAsFactors = FALSE)
 
-
-# projection string
-pj <- CRS("+proj=aea +lat_1=38 +lat_2=58 +lat_45=0 +lon_0=-126 +x_0=1000000.0 +y_0=0 +ellps=GRS80 +datum=NAD83")
 
 
 ##########################################################################################
 ##########################################################################################
 # Regional Polygon 
 
+
+# projection string
+pj <- CRS("+proj=aea +lat_1=38 +lat_2=58 +lat_45=0 +lon_0=-126 +x_0=1000000.0 +y_0=0 +ellps=GRS80 +datum=NAD83")
+
+
 data(nepacLL)
 world <- nepacLL
-land <- clipPolys(world, xlim = c(-140, -115), ylim =c (45, 58)) #clip to NPO
+land <- clipPolys(world, xlim = c(-130, -120), ylim =c (47, 50)) #clip to NPO
 landT<- thinPolys(land, tol = 1, filter = 20) #remove small polys
 sp.world <- PolySet2SpatialPolygons(landT)
 proj.world <- spTransform(sp.world, CRS=pj)
@@ -55,8 +55,14 @@ ggplot(data = NULL) +
 ##########################################################################################
 # NASC data
 
+# add replciate
+nasc$Transect <-  sub(".*/", "", nasc$EV_filename) # remove everything before /
+nasc$Replicate <-  gsub("[A-Za-z ]", "", nasc$Transect)
+nasc$Replicate <-  as.numeric(sub("[.].*", "", nasc$Replicate))
+
+
 #group by interval
-nasc <- ddply(nasc, .(Lat_S, Lon_S, Interval, EV_filename),
+nasc <- ddply(nasc, .(Lat_S, Lon_S, Interval, Transect, Replicate),
                    summarise,
                    NASC = sum(NASC),
                    Date = head(Date_S,1),
@@ -65,23 +71,9 @@ nasc <- ddply(nasc, .(Lat_S, Lon_S, Interval, EV_filename),
 # remove bad data
 nasc <- nasc[!nasc$Lat_S == 999,]
 
-# change file name into transect in nasc
-tempf <- unlist(strsplit(nasc$EV_filename, "[.]EV"))
-tempt <- unlist(strsplit(tempf, "/"))
-steps <- length(tempt)/length(tempf)
-nasc$Transect <- tempt[(seq(steps,to=length(tempt),by=steps))]
-nasc <- nasc[,c( "Date", "Time", "Interval","Lat_S","Lon_S", "NASC","Transect")]
-
-
-# change file name into transect in trans
-trans$Transect <- sub(".csv", "", trans$File)
-
-## merge nasc and log with replicate info
-int <- merge(nasc, trans, by = "Transect")
-
 
 # --  repeat script once for each survey or replicate combo
-int <- int[int$Survey == 1 & int$Replicate == "y", ]
+int <- nasc[nasc$Replicate == "1", ]
 
 
 # transform into spatial dataframe and project
@@ -108,7 +100,7 @@ ggplot(data = NULL) +
 forhull <- forhull[!duplicated(forhull[c("Lon_S", "Lat_S")]),]
 
 ## Create polygon surrounding track points
-hull <- ahull(x= forhull$Lon_S, y= forhull$Lat_S, alpha = 3.5)
+hull <- ahull(x= forhull$Lon_S, y= forhull$Lat_S, alpha = 1.5)
 plot(hull, asp=1)
 bb.pts <- forhull[hull$arcs[,"end1"],c("Lon_S", "Lat_S")]  # extract the boundary points from XY
 bb.pts <- rbind(bb.pts,bb.pts[1,])                  # add the closing point
@@ -133,13 +125,13 @@ ggplot(data = NULL) +
 
 # clip track bondary with land polygon
 
-buff.world <- gBuffer(proj.world, width = 5500)
+buff.world <- gBuffer(proj.world, width = 2000)
 
 plot(buff.world, col= "blue")
 plot(proj.world, col= "yellow", add=T)
 
 erase <- gDifference(proj.boundary, buff.world)
-area.hull <- gBuffer(erase, width = 3500)
+area.hull <- gBuffer(erase, width = 1000)
 
 # map
 plot(area.hull, col = "orange")
@@ -150,7 +142,8 @@ plot(proj.int, col = "dodgerblue", add=T, pch = 1, cex = .1)
 harea <- gArea(area.hull)
 harea * (2.915533496 * 10^-7)
 
-
+# rep 1 = 1326
+# rep 2 = 1246
 
 
 

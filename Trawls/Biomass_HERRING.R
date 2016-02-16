@@ -61,13 +61,13 @@ logs$Region_class <- sub( "\\s", "" , logs$Region_class)
 
 # change transect into replicate
 logs$Transect <- sub(".csv", "", logs$File)
-logs$Replicate <- sub("T", "", logs$Transect)
+logs$Replicate <- gsub("[A-Za-z ]", "", logs$Transect)
 logs$Replicate <- as.numeric(sub("[.].*", "", logs$Replicate))
 
-intbyreg$Replicate <-  sub("T", "", intbyreg$Transect)
+intbyreg$Replicate <-  gsub("[A-Za-z ]", "", intbyreg$Transect)
 intbyreg$Replicate <-  as.numeric(sub("[.].*", "", intbyreg$Replicate))
 
-intbycells$Replicate <-  sub("T", "", intbycells$Transect)
+intbycells$Replicate <-  gsub("[A-Za-z ]", "", intbycells$Transect)
 intbycells$Replicate <-  as.numeric(sub("[.].*", "", intbycells$Replicate))
 
 
@@ -80,9 +80,10 @@ intbycells$Replicate <-  as.numeric(sub("[.].*", "", intbycells$Replicate))
 # analysis regions classes
 reg <- unique(intbyreg$Region_class)
 reg
+finalsp <- c("Herring", "Pollock", "Rockfish", "Hake", "Age-1 Hake", "Mackerel")
 
 # mixed regions
-mixed <- c("Herring-Rockfish mix")
+mixed <- c("Herring-Rockfish mix", "Hake mix")
 
 
 
@@ -100,7 +101,7 @@ bioint.df <- NULL
 
 
 #replicates
-reps <- c("Replicate1","Replicate2")
+reps <- c("Replicate1","Replicate2","Replicate4")
 
 
 # loop
@@ -124,6 +125,15 @@ for (i in reps){
     flength <- flengths[flengths$Replicate == 2, ]
   }
   
+  # 3) for replicate 4
+  if(i == "Replicate4")  {
+    Log <- logs[logs$Replicate == 4,]
+    nasc <- intbyreg[intbyreg$Replicate == 4,]
+    nasc_cells <- intbycells[intbycells$Replicate == 4,]
+    summ <- summs[summs$Replicate == 4, ]
+    flength <- flengths[flengths$Replicate == 4, ]
+  }
+  
   
   
   
@@ -145,6 +155,7 @@ for (i in reps){
     matched$SET <- sub("[A-z ]*","",matched$SET) # remove leading letters and spaces
     matched$SET <- sub("-.*","",matched$SET) # remove everything after dash
     matched$SET <- sub(".*A","",matched$SET) # remove everything before A
+    matched
     
     # mean weight, length and count data for mixed sets
     mat <- morph[morph$SET %in% matched$SET,]
@@ -306,15 +317,22 @@ for (i in reps){
   biocell <- NULL
   bioint <- NULL
   
-  for (s in unique(bio$Region_class)){
+  for (s in finalsp){
     
     # bio by species
     bio_s <- bio[bio$Region_class == s,]
     
-    # biomass by regions by cells
-    biocell_s <- rbind(bio_s,nasc_cells[-duprows(bio_s,nasc_cells),colnames(bio_s)])
-    biocell_s$Species <- s
+    if(nrow(bio_s) > 0){
+      # biomass by regions by cells
+      biocell_s <- rbind(bio_s,nasc_cells[-duprows(bio_s,nasc_cells),colnames(bio_s)])
+      biocell_s$Species <- s
+    } else {
+      # for species not found in a replicate
+      biocell_s <- nasc_cells[colnames(bio)]
+      biocell_s$Species <- s
+    }
     biocell <- rbind(biocell, biocell_s)
+    
     
     # biomass by regions by interval
     bioint_s <- ddply(biocell_s, .(Replicate, Transect, Interval), summarise,
@@ -382,9 +400,9 @@ for (k in unique(bioint.df$Species)){
 bio_sum <- ddply(bioint.df, .(Replicate, Species), summarise, 
                  Mean.Density.nmi = mean(Density_nmi),
                  Mean.Biomass.kg.nmi = mean(Biomass_kg_nmi))
+bio_sum <- bio_sum[bio_sum$Replicate %in% c("1","2"),]
 
-
-# scale up biomass to area of interest (spatial extent) 1900
+# scale up biomass to area of interest (spatial extent from 'TransectArea.R')
 bio_sum$Area.Biomass.kmt <- (bio_sum$Mean.Biomass.kg.nmi * 1900) /1000 / 1000
 bio_sum
 
@@ -405,11 +423,8 @@ data(nepacLL)
 lp<-data.frame(nepacLL)
 
 ## set colour palette
-#cols <- c("#00DDFF", "#FCDF00", "#4daf4a", "#ff7f00", "#984ea3", "#377eb8")
-cols <- c("#00DDFF", "#FCDF00", "#ff7f00", "#984ea3", "#377eb8")
-lg <- length(unique(bio$Region_class))
-leg <- ifelse(lg > length(cols), length(cols), lg)
-pal <- colorRampPalette(cols[1:leg],space = c("rgb"),interpolate = c("spline"))(lg)
+cbPalette <- c("#E69F00", "#56B4E9", "#F0E442", "#009E73", "#CC79A7", "#D55E00", "#0072B2")
+
 
 
 # replicate map
@@ -420,14 +435,12 @@ repmap <- ggplot(data = NULL) +
              aes(x = Lon, y = Lat), 
              pch = 16, size = .5, colour = "grey40") +
   geom_point(data = bioint.df[bioint.df$Biomass_kg_nmi > 0,], 
-             aes(x = Lon, y = Lat, colour=Species, 
-                 fill=Species, size = Biomass_kg_nmi/1000), 
+             aes(x = Lon, y = Lat, colour=Species, size = Biomass_kg_nmi/1000), 
              pch = 1, stroke = 1) +
-  facet_wrap(~Replicate, ncol=2) +
-  scale_size_area(max_size = 18, name = "Biomass (T)")+
-  scale_colour_manual(values=pal, name = "") +
-  scale_fill_manual(values=pal, name = "") +
-  guides(colour = guide_legend(override.aes = list(size=4), ncol=1))+
+  facet_wrap(~Replicate, nrow=1) +
+  scale_size_area(max_size = 18, name = "Biomass (T / nmi)")+
+  scale_colour_manual(values=cbPalette, name = "Species") +
+  guides(colour = guide_legend(override.aes = list(size=4), ncol=2))+
   labs(x = "Longitude", y = "Latitude") +
   coord_map(xlim = c(min(bioint.df$Lon)-.1, max(bioint.df$Lon)+.1), 
             ylim = c(min(bioint.df$Lat)-.1, max(bioint.df$Lat)+.1)) +
@@ -448,7 +461,7 @@ repmap <- ggplot(data = NULL) +
         plot.margin = unit(c(.5,.5,.5,.5), "lines")) # top, right, bottom, and left 
 repmap
 
-pdf("Other data/Figures/BiomassMap.pdf", width = 11, height = 7)
+pdf("Other data/Figures/BiomassMap.pdf", width = 12, height = 6)
 repmap
 dev.off()
 
@@ -465,7 +478,7 @@ comp_reps <- ggplot(data = bio_sum) +
   geom_text(aes(x=Species, y = Area.Biomass.kmt, group = Replicate, label = Replicate), 
             position = position_dodge(width=1), size = 2.5, vjust = -.3) +
   labs(x="", y=" Total Biomass (kmt)") +
-  scale_fill_manual(values = pal, guide="none") +
+  scale_fill_manual(values = cbPalette, guide="none") +
   scale_y_continuous(breaks = c(20,40,60,80,100,120), expand =c(0,0), 
                      limit= c(0,max(bio_sum$Area.Biomass.kmt)*1.05))+
   # themes
