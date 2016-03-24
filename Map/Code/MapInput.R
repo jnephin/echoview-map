@@ -7,7 +7,7 @@ require(chron)
 require(classInt)
 
 
-basePlot <- function(dataset, city, survey, day, hour, shiplog, analysis, species, ctds, trawl, project, xlims, ylims, isob, bathy, pointsize, linesize, maxsize){
+basePlot <- function(dataset, city, survey, day, hour, daylog, transectlog, analysis, species, ctds, trawl, project, xlims, ylims, isob, bathy, pointsize, linesize, maxsize){
 
 #ocean colour  
 bg <- "white"  #'#bddfeb'
@@ -173,6 +173,11 @@ if (nrow(start) == nrow(end)){
   stop("Different number of start (ST = ", nrow(start), ") and end (ET = ", nrow(end), ") transects in 'Region_name' column of CruiseLog.csv")
 }
 
+#melt transects for path
+meltrans <- data.frame(grp = c(transects$start.Region_name, transects$start.Region_name),
+                        lat = c(transects$start.Lat_s, transects$end.Lat_s),
+                        lon = c(transects$start.Lon_s, transects$end.Lon_s))
+meltrans <- meltrans[order(meltrans$grp),]
 
 #trawling
 trawls <- Log[grep("SD", Log$Region_name, ignore.case=TRUE), c("Region_class", "Date_s","Time_s","Lat_s","Lon_s","Region_name")]
@@ -198,6 +203,10 @@ regionlabs <- region[!duplicated(region$set1),]
 #ctd
 ctd <- cruiselog[grep("ctd", cruiselog$Region_name, ignore.case=TRUE), c("Region_class", "Date_s","Time_s","Lat_s","Lon_s","Region_name")]
 
+#which analysis regions to show
+for (i in species){
+  region$alpha[region$Region_class == i] <- 1
+}
 
 
 #################################
@@ -205,12 +214,10 @@ ctd <- cruiselog[grep("ctd", cruiselog$Region_name, ignore.case=TRUE), c("Region
 
 intfile <- "Acoustics/Echoview/Exports/Sv raw pings T2/IntegratedByRegionsByCells.csv"
 
-#Load the integration file. If it doesn't exist, give error
+#Load the integration file. If it doesn't exist, do nothing
 if (file.exists(intfile)) {
   int <- read.csv(intfile, header=T, row.names=1, stringsAsFactors = FALSE)
-} else {
-  stop(file.path(getwd(),intfile), " not found")
-}
+
 
 #set colours
 nasc.df <- merge(int, set1, by = "Region_class")
@@ -220,12 +227,16 @@ nasc.df$alpha <- 0
 
 #which analysis regions to show
 for (i in species){
-  region$alpha[region$Region_class == i] <- 1
   nasc.df$alpha[nasc.df$Region_class == i] <- 1
 }
 
 #set breaks
 breaks <- signif(classIntervals(nasc.df$PRC_NASC, 5, style = "kmeans")$brks,1)[-1]
+
+} else {
+  cat("No file: IntregratedByRegionsByCells.csv")
+}
+
 
 
 ######################################################
@@ -307,15 +318,23 @@ if(hour == TRUE)
   base <- base + geom_text(data = time, aes_string(x = "Longitude", y = "Latitude", 
                            label = "Hours"), colour="black", size=pointsize,  fontface = 2)
 
-#transects
-if(shiplog == TRUE) {
+#day transects
+if(daylog == TRUE) {
   base <- base + geom_path(data = int_cells, aes_string(x = "Lon_S", y = "Lat_S", group = "EV_filename"), 
-                              size = linesize) +
-                geom_text(data = transects, aes_string(x = "start.Lon_s", 
-                          y = "start.Lat_s", label="start.Region_name"), size = pointsize, 
-                          vjust = 1.2, fontface = 2)
+                           size = linesize) +
+    geom_text(data = transects, aes_string(x = "start.Lon_s", y = "start.Lat_s", label="start.Region_name"), 
+              size = pointsize, vjust = 1.2, fontface = 2)
 }
 
+#transects
+if(transectlog == TRUE) {
+  base <- base + geom_path(data = meltrans, 
+                              aes_string(x = "lon", y = "lat", group = "grp"), 
+                              size = linesize)+
+  geom_text(data = transects, 
+            aes_string(x = "start.Lon_s", y = "start.Lat_s", label="start.Region_name"), 
+            size = pointsize, vjust = 1.2, fontface = 2)
+}
 
 #regions
 if(analysis == "Regions") {

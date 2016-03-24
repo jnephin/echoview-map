@@ -31,19 +31,21 @@ ui = fluidPage(
     sidebarPanel(width = 3,
                  strong("Map Layers"),
                  fluidRow(
-                   column(4,
-                          checkboxInput("shiplog", label = "Transects", value = TRUE)),
+                   column(3,
+                          checkboxInput("daylog", label = "Days", value = TRUE)),
+                   column(3,
+                          checkboxInput("transectlog", label = "Transects", value = FALSE)),
                    column(3,
                           checkboxInput("trawl", label = "Trawls", value = TRUE)),
                    column(2,
                           checkboxInput("ctds", label = "CTD", value = TRUE)),
                    column(3,
                           checkboxInput("city", label = "Cities", value = TRUE)),
-                   column(4,
+                   column(3,
                           checkboxInput("survey", label = "Track", value = FALSE)), 
-                   column(4,
+                   column(3,
                           checkboxInput("day", label = "Dates", value = FALSE)),                             
-                   column(4,
+                   column(3,
                           checkboxInput("hour", label = "Times", value = FALSE))),
                  fluidRow(
                    column(5,
@@ -89,16 +91,14 @@ ui = fluidPage(
                    column(4,
                           sliderInput("maxsize", label = "Area", 
                                       min = 5, max = 20, value = 10, step = 1, ticks = FALSE))),
+                 hr(),
                  fluidRow(
-                   column(12, 
-                          h4("Print PDF options", align ="center")),
                    column(3,     
                           numericInput("width", label = "Width", value = 10)),
                    column(3,
                           numericInput("height", label = "Height", value = 9)),
                    column(6,
                           textInput("name",  label = "File Name", value = "Map"))),
-                 hr(),
                  fluidRow(
                    column(5, align="center",
                           actionButton("button", "Create PDF")),
@@ -123,7 +123,7 @@ server = function(input, output) {
   
   # Reactive plot
   reactmap <- reactive({
-    basePlot(dataset = input$dataset, city = input$city, survey = input$survey, day = input$day, hour = input$hour, shiplog = input$shiplog, analysis = input$analysis, species = input$species, ctds = input$ctds, trawl = input$trawl, project = input$project, xlims = input$xlims, ylims = input$ylims, isob = input$isob, bathy = input$bathy,  pointsize = input$pointsize, linesize = input$linesize, maxsize = input$maxsize)
+    basePlot(dataset = input$dataset, city = input$city, survey = input$survey, day = input$day, hour = input$hour, daylog = input$daylog, transectlog = input$transectlog, analysis = input$analysis, species = input$species, ctds = input$ctds, trawl = input$trawl, project = input$project, xlims = input$xlims, ylims = input$ylims, isob = input$isob, bathy = input$bathy,  pointsize = input$pointsize, linesize = input$linesize, maxsize = input$maxsize)
   })
   
   # Generate the reactive plot 
@@ -137,7 +137,7 @@ server = function(input, output) {
     #print map to file
     pdf(paste(file.path(Mapdir, input$name), ".pdf", sep = ""), 
         width=input$width, height=input$height)            
-    print(basePlot(dataset = input$dataset, city = input$city, survey = input$survey, day = input$day, hour = input$hour, shiplog = input$shiplog, analysis = input$analysis, species = input$species, ctds = input$ctds, trawl = input$trawl, project = input$project, xlims = input$xlims, ylims = input$ylims, isob = input$isob, bathy = input$bathy,  pointsize = input$pointsize, linesize = input$linesize , maxsize = input$maxsize))
+    print(basePlot(dataset = input$dataset, city = input$city, survey = input$survey, day = input$day, hour = input$hour, daylog = input$daylog, transectlog = input$transectlog, analysis = input$analysis, species = input$species, ctds = input$ctds, trawl = input$trawl, project = input$project, xlims = input$xlims, ylims = input$ylims, isob = input$isob, bathy = input$bathy,  pointsize = input$pointsize, linesize = input$linesize , maxsize = input$maxsize))
     dev.off()
     
   })

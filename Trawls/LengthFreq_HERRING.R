@@ -16,8 +16,9 @@ morpho <- read.csv("Other data/Catch data/morpho.csv", header=T, stringsAsFactor
 
 # load catch data for lat long
 catch <- read.csv("Other data/Catch data/catch.csv", header=T, stringsAsFactors = FALSE)
-catch <- catch[!is.na(catch$CATCH_WEIGHT_kg),]
 colnames(catch)[8] <- "SPECIES_DESC"
+colnames(catch)[20] <- "CATCH_WEIGHT_kg"
+catch <- catch[!is.na(catch$CATCH_WEIGHT_kg),]
 
 # load echoview log
 log <- read.csv("Acoustics/Echoview/Exports/Log/Cruiselog.csv", header=T, stringsAsFactors = FALSE, row.names=1)
@@ -59,8 +60,6 @@ morpho$LENGTH <- ifelse(morpho$LENGTH_UNITS == "CENTIMETRE",
                               morpho$LENGTH*10,
                               morpho$LENGTH)
 
-## UPDATE SPECIES DESC
-morpho$SPECIES_DESC <- sub(".*- ", "", morpho$SPECIES_CODE)
 
 ## CHECK
 
@@ -218,6 +217,8 @@ print(mapmean)
 ##########################################################################################
 # EXPORT mean length and weight by species
 
+# group catch data
+catch <- ddply(catch, .(SET, SPECIES_DESC), summarise, CATCH_WEIGHT_kg = sum(CATCH_WEIGHT_kg))
 
 # group rockfish catch together
 rock <- grep("rockfish|perch", catch$SPECIES_DESC, ignore.case=T)
@@ -278,7 +279,7 @@ df <- ddply(comb[comb$Replicate == r,], .(SPECIES_DESC), summarise,
                       mean.length.mm = mean(LENGTH),
                       weigted.mean.length.mm = sum(LENGTH * CATCH_WEIGHT_kg)/
                                                     sum(CATCH_WEIGHT_kg),
-                      mean.weight.kg = mean(WEIGHT, na.rm = T)/1000,
+                      mean.weight.kg = mean(WEIGHT)/1000,
                       n = length(WEIGHT))
 df$Replicate <- r
 morph_sum <- rbind(morph_sum, df)
@@ -318,7 +319,7 @@ morph_count <- NULL
 for (r in unique(comb$Replicate)){
 df <- ddply(comb[comb$Replicate == r,], .(SET, SPECIES_DESC), summarise,
                 mean.length.mm = mean(LENGTH),
-                mean.weight.kg = mean(WEIGHT, na.rm = T)/1000,
+                mean.weight.kg = mean(WEIGHT)/1000,
                 total.weight.kg = min(CATCH_WEIGHT_kg))
 df$Replicate <- r
 morph_count <- rbind(morph_count, df)

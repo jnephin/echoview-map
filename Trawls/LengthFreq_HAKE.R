@@ -2,6 +2,7 @@ require(ggplot2)
 require(grid)
 require(PBSmapping)
 require(plyr)
+require(reshape2)
 
 # set working directory 
 setwd('..');setwd('..')
@@ -198,16 +199,19 @@ histo <-  ggplot(data = length[length$SPECIES_COMMON_NAME == f,]) +
         panel.grid.minor = element_blank(),
         axis.text = element_text(size=7, colour = "black"),
         axis.title = element_text(size=10, colour = "black"),
-        plot.margin = unit(c(.2,.2,.2,.2), "lines")) # top, right, bottom, and left
-pdf(paste("Other data/Figures/","Lengths_Histogram",name,".pdf", sep=""), width = 4, height = 3.5)
+        plot.margin = unit(c(.2,.2,.2,.2), "lines"))+ # top, right, bottom, and left
+  ggtitle(f)
 print(histo)
-dev.off()
 }
 
 
 ##----------------------------------##
 # choose length cut-off for age 1 Hake
 cutoff <- 350
+
+##----------------------------------##
+# choose length cut-off for Rockfish juvenilles
+cutoffrock <- 100
 
 
 
@@ -272,10 +276,7 @@ mapmean <-  ggplot(data = NULL) +
         legend.position = "right",
         plot.margin = unit(c(.5,.5,.5,.5), "lines")) +
   ggtitle(lab = name)
-
-#pdf(paste("Other data/Figures/","Lengths_Map",name,".pdf", sep=""), width = 4.5, height = 3.5)
 print(mapmean)
-#dev.off()
 }
 
 
@@ -285,6 +286,8 @@ print(mapmean)
 ##########################################################################################
 # EXPORT mean length and weight by species
 
+# group catch data
+catch <- ddply(catch, .(SET, SPECIES_COMMON_NAME), summarise, CATCH_WEIGHT = sum(CATCH_WEIGHT))
 
 # group rockfish catch together
 rock <- grep("rockfish|perch", catch$SPECIES_COMMON_NAME, ignore.case=T)
@@ -315,15 +318,23 @@ comb <- merge(morpho, grp_catch[c("SET", "SPECIES_COMMON_NAME", "CATCH_WEIGHT")]
 species_full
 unique(comb$SPECIES_COMMON_NAME)
 
+# rockfish species
+rockfishsp <- unique(grep("rockfish|perch", comb$SPECIES_COMMON_NAME, ignore.case=T, value = T))
+
 
 # reclassify morpho species to fit analysis region species
 comb$SPECIES_COMMON_NAME[comb$SPECIES_COMMON_NAME == "PACIFIC HAKE" & 
                     comb$SPECIMEN_MORPHOMETRICS_VALUE > cutoff  ] <- "Hake"
 comb$SPECIES_COMMON_NAME[comb$SPECIES_COMMON_NAME == "PACIFIC HAKE" & 
-                    comb$SPECIMEN_MORPHOMETRICS_VALUE < cutoff  ] <- "Age-1 Hake"
+                    comb$SPECIMEN_MORPHOMETRICS_VALUE <= cutoff  ] <- "Age-1 Hake"
+comb$SPECIES_COMMON_NAME[comb$SPECIES_COMMON_NAME %in% rockfishsp & 
+                           comb$SPECIMEN_MORPHOMETRICS_VALUE <= cutoffrock  ] <- "JuvenileRockfish"
+comb$SPECIES_COMMON_NAME[comb$SPECIES_COMMON_NAME %in% rockfishsp & 
+                           comb$SPECIMEN_MORPHOMETRICS_VALUE > cutoffrock  ] <- "Rockfish"
 comb$SPECIES_COMMON_NAME[grep("herring", comb$SPECIES_COMMON_NAME, ignore.case=T)] <- "Herring"
-comb$SPECIES_COMMON_NAME[grep("rockfish|perch", comb$SPECIES_COMMON_NAME, ignore.case=T)] <- "Rockfish"
 comb$SPECIES_COMMON_NAME[grep("myctophid|lampfish|headlight", comb$SPECIES_COMMON_NAME, ignore.case=T)] <- "Myctophids"
+comb$SPECIES_COMMON_NAME[grep("cps", comb$SPECIES_COMMON_NAME, ignore.case=T)] <- "CPS"
+comb$SPECIES_COMMON_NAME[grep("sardine", comb$SPECIES_COMMON_NAME, ignore.case=T)] <- "Sardine"
 comb$SPECIES_COMMON_NAME[grep("mackerel", comb$SPECIES_COMMON_NAME, ignore.case=T)] <- "Mackerel"
 comb$SPECIES_COMMON_NAME[grep("pollock", comb$SPECIES_COMMON_NAME, ignore.case=T)] <- "Pollock"
 comb$SPECIES_COMMON_NAME[grep("eulachon", comb$SPECIES_COMMON_NAME, ignore.case=T)] <- "Eulachon"
@@ -335,10 +346,18 @@ table(comb$SPECIES_COMMON_NAME)
 # check weight units - should be all in grams
 table(comb$WEIGHT_UNITS)
 
+# add strata
+comb <- merge(comb, set.xy, by = "SET", all.x=T)
+comb$strata <- 1
+comb$strata[comb$Lat_s >= 50] <- 2
+comb$strata[comb$Lat_s >= 52] <- 3
+
+
 # calc mean length and weight for each species
-morph_sum <- ddply(comb, .(SPECIES_COMMON_NAME), summarise, 
+morph_sum <- ddply(comb, .(strata, SPECIES_COMMON_NAME), summarise, 
                       mean.length.mm = mean(SPECIMEN_MORPHOMETRICS_VALUE),
-                      weigted.mean.length.mm = sum(SPECIMEN_MORPHOMETRICS_VALUE * WEIGHT, na.rm=T)/sum(WEIGHT, na.rm=T),
+                      weigted.mean.length.mm = sum(SPECIMEN_MORPHOMETRICS_VALUE * CATCH_WEIGHT, 
+                                                   na.rm=T)/sum(CATCH_WEIGHT, na.rm=T),
                       mean.weight.kg = mean(WEIGHT, na.rm=T)/1000,
                       n = length(WEIGHT))
 morph_sum
@@ -372,8 +391,10 @@ for (h in unique(comb$SET)){
 # calculate new total catch weights for hake and age1 hake in the same tows
 comb$CATCH_WEIGHT <- comb$CATCH_WEIGHT * comb$phake
 
+
+
 # calc mean weights (in kg) for each species and each set
-morph_count <- ddply(comb, .(SET, SPECIES_COMMON_NAME), summarise,
+morph_count <- ddply(comb, .(SET, SPECIES_COMMON_NAME, strata), summarise,
                      mean.length.mm = mean(SPECIMEN_MORPHOMETRICS_VALUE),
                      mean.weight.kg = mean(WEIGHT, na.rm=T)/1000,
                      total.weight.kg = min(CATCH_WEIGHT))
@@ -385,6 +406,27 @@ morph_count
 
 # export summary
 write.csv(morph_count, file = "Other data/Catch data/morpho_counts.csv")
+
+
+
+
+##########################################################################################
+##########################################################################################
+# EXPORT length frequencies by species
+
+
+# calc length freq 
+freqtable <- ddply(comb, .(SPECIMEN_MORPHOMETRICS_VALUE, SPECIES_COMMON_NAME, SET, strata),
+                   summarise,
+                   Freq = length(SPECIMEN_MORPHOMETRICS_VALUE))
+
+
+# export summary
+write.csv(freqtable, file = "Other data/Catch data/Length_freq.csv")
+
+
+
+
 
 
 
